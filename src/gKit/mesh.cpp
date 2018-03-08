@@ -302,8 +302,12 @@ GLuint Mesh::create_buffers( const bool use_texcoord, const bool use_normal, con
         printf("[oops] mesh: invalid colors array...\n");
 #endif
     
+#ifndef __EMSCRIPTEN__
     glGenVertexArrays(1, &m_vao);
     glBindVertexArray(m_vao);
+#else
+    m_vao = 1 ;
+#endif
     
     // determine la taille du buffer pour stocker tous les attributs et les indices
     size_t size= vertex_buffer_size() + texcoord_buffer_size() + normal_buffer_size() + color_buffer_size();
@@ -313,37 +317,69 @@ GLuint Mesh::create_buffers( const bool use_texcoord, const bool use_normal, con
     glBufferData(GL_ARRAY_BUFFER, size, nullptr, GL_STATIC_DRAW);
     
     // transferer les attributs et configurer le format de sommet (vao)
+    GLint location = 0 ;
     size_t offset= 0;
     size= vertex_buffer_size();
+#ifdef __EMSCRIPTEN__
+    location = glGetAttribLocation(m_program, "position") ;
+    if(location != -1) {
+#endif
     glBufferSubData(GL_ARRAY_BUFFER, offset, size, vertex_buffer());
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (const void *) offset);
-    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(location, 3, GL_FLOAT, GL_FALSE, 0, (const void *) offset);
+    glEnableVertexAttribArray(location);
+#ifdef __EMSCRIPTEN__
+    }
+#endif
     
     if(m_texcoords.size() == m_positions.size() && use_texcoord)
     {
+        location = 1 ;
+#ifdef __EMSCRIPTEN__
+        location = glGetAttribLocation(m_program, "texcoord") ;
+        if(location != -1) {
+#endif
         offset= offset + size;
         size= texcoord_buffer_size();
         glBufferSubData(GL_ARRAY_BUFFER, offset, size, texcoord_buffer());
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (const void *) offset);
-        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(location, 2, GL_FLOAT, GL_FALSE, 0, (const void *) offset);
+        glEnableVertexAttribArray(location);
+#ifdef __EMSCRIPTEN__
+        }
+#endif
     }
     
     if(m_normals.size() == m_positions.size() && use_normal)
     {
+        location = 2 ;
+#ifdef __EMSCRIPTEN__
+        location = glGetAttribLocation(m_program, "normal") ;
+        if(location != -1) {
+#endif
         offset= offset + size;
         size= normal_buffer_size();
         glBufferSubData(GL_ARRAY_BUFFER, offset, size, normal_buffer());
-        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, (const void *) offset);
-        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(location, 3, GL_FLOAT, GL_FALSE, 0, (const void *) offset);
+        glEnableVertexAttribArray(location);
+#ifdef __EMSCRIPTEN__
+        }
+#endif
     }
     
     if(m_colors.size() == m_positions.size() && use_color)
     {
+        location = 3 ;
+#ifdef __EMSCRIPTEN__
+        location = glGetAttribLocation(m_program, "color") ;
+        if(location != -1) {
+#endif
         offset= offset + size;
         size= color_buffer_size();
         glBufferSubData(GL_ARRAY_BUFFER, offset, size, color_buffer());
-        glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 0, (const void *) offset);
-        glEnableVertexAttribArray(3);
+        glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, 0, (const void *) offset);
+        glEnableVertexAttribArray(location);
+#ifdef __EMSCRIPTEN__
+        }
+#endif
     }
     
     // allouer l'index buffer
@@ -418,10 +454,17 @@ GLuint Mesh::create_program( const bool use_texcoord, const bool use_normal, con
 
     //~ printf("--\n%s", definitions.c_str());
     bool use_mesh_color= (m_primitives == GL_POINTS || m_primitives == GL_LINES || m_primitives == GL_LINE_STRIP || m_primitives == GL_LINE_LOOP);
+#ifndef __EMSCRIPTEN__
     if(!use_mesh_color)
         m_program= read_program( smart_path("data/shaders/mesh.glsl"), definitions.c_str());
     else
         m_program= read_program( smart_path("data/shaders/mesh_color.glsl"), definitions.c_str());
+#else
+    if(!use_mesh_color)
+        m_program= read_program( smart_path("data/shaders/es2_mesh.glsl"), definitions.c_str());
+    else
+        m_program= read_program( smart_path("data/shaders/es2_mesh_color.glsl"), definitions.c_str());
+#endif
     return m_program;
 }
 
@@ -489,8 +532,10 @@ void Mesh::draw( const Transform& model, const Transform& view, const Transform&
     // etape  2 : cree les buffers et le vao
     if(m_vao == 0)
         create_buffers(true, true, true);
-    
+#ifndef __EMSCRIPTEN__
     assert(m_vao != 0);
+#endif
+    
     if(m_update_buffers)
         update_buffers(true, true, true);
     
@@ -514,12 +559,15 @@ void Mesh::draw( const GLuint program, const bool use_position, const bool use_t
     if(m_vao == 0)
         // cree les buffers demandes, inclus toujours position
         create_buffers(use_texcoord, use_normal, use_color);
+#ifndef __EMSCRIPTEN__
     assert(m_vao != 0);
+#endif
     
     if(m_update_buffers)
         update_buffers(use_texcoord, use_normal, use_color);
-    
+#ifndef __EMSCRIPTEN__
     glBindVertexArray(m_vao);
+#endif
     
 #ifndef GK_RELEASE
     // verifie que le program est selectionne

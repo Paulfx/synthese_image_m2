@@ -14,8 +14,10 @@ int AppTime::run( )
     if(m_window == nullptr || m_context == nullptr || init() < 0)
         return -1;
     
+#ifndef __EMSCRIPTEN__
     // requete pour mesurer le temps gpu
     glGenQueries(1, &m_time_query);
+#endif
     
     // affichage du temps  dans la fenetre
     m_console= create_text();
@@ -37,8 +39,10 @@ int AppTime::run( )
         if(update(global_time(), delta_time()) < 0)
             break;
         
+#ifndef __EMSCRIPTEN__
         // mesure le temps d'execution du draw pour le gpu
         glBeginQuery(GL_TIME_ELAPSED, m_time_query);
+#endif
         
         // mesure le temps d'execution du draw pour le cpu
         // utilise std::chrono pour mesurer le temps cpu 
@@ -50,7 +54,9 @@ int AppTime::run( )
         // conversion des mesures en duree...
         int cpu_time= std::chrono::duration_cast<std::chrono::nanoseconds>(cpu_stop - cpu_start).count();
         
+#ifndef __EMSCRIPTEN__
         glEndQuery(GL_TIME_ELAPSED);
+#endif
         
         // force openGL a finir d'executer toutes les commandes, cf App::run()
         glFinish();
@@ -60,7 +66,9 @@ int AppTime::run( )
         
         // attendre le resultat de la requete
         GLint64 gpu_time= 0;
+#ifndef __EMSCRIPTEN__
         glGetQueryObjecti64v(m_time_query, GL_QUERY_RESULT, &gpu_time);
+#endif
         
         // afficher le texte
         clear(m_console);        
@@ -84,7 +92,9 @@ int AppTime::run( )
     if(quit() < 0)
         return -1;
     
+#ifndef __EMSCRIPTEN__
     glDeleteQueries(1, &m_time_query);
+#endif
     release_text(m_console);    
     
     return 0;    
