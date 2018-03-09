@@ -302,12 +302,8 @@ GLuint Mesh::create_buffers( const bool use_texcoord, const bool use_normal, con
         printf("[oops] mesh: invalid colors array...\n");
 #endif
     
-#ifndef __EMSCRIPTEN__
     glGenVertexArrays(1, &m_vao);
     glBindVertexArray(m_vao);
-#else
-    m_vao = 1 ;
-#endif
     
     // determine la taille du buffer pour stocker tous les attributs et les indices
     size_t size= vertex_buffer_size() + texcoord_buffer_size() + normal_buffer_size() + color_buffer_size();
@@ -559,15 +555,11 @@ void Mesh::draw( const GLuint program, const bool use_position, const bool use_t
     if(m_vao == 0)
         // cree les buffers demandes, inclus toujours position
         create_buffers(use_texcoord, use_normal, use_color);
-#ifndef __EMSCRIPTEN__
     assert(m_vao != 0);
-#endif
     
     if(m_update_buffers)
         update_buffers(use_texcoord, use_normal, use_color);
-#ifndef __EMSCRIPTEN__
     glBindVertexArray(m_vao);
-#endif
     
 #ifndef GK_RELEASE
     // verifie que le program est selectionne
