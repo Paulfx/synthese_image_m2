@@ -23,6 +23,9 @@ public:
     //! a deriver pour detruire les objets openGL.
     virtual int quit( ) = 0;
 
+    //Pour pouvoir ajouter du texte à la console
+    virtual void printTextConsole();
+
     //! a deriver et redefinir pour animer les objets en fonction du temps.
     using App::update;
 

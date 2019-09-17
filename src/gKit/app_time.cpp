@@ -15,6 +15,9 @@ AppTime::AppTime( const int width, const int height, const int major, const int 
 
 AppTime::~AppTime( ) {}
 
+void AppTime::printTextConsole() {
+    //Nothing
+}
 
 int AppTime::run( )
 {
@@ -62,6 +65,8 @@ int AppTime::run( )
         clear(m_console);        
         printf(m_console, 0, 1, "cpu  %02dms %03dus", cpu_time / 1000, cpu_time % 1000);
         printf(m_console, 0, 2, "gpu  %02dms %03dus", int(gpu_time / 1000000), int((gpu_time / 1000) % 1000));
+
+        printTextConsole();
         
         // affiche le temps dans le terminal 
         //~ printf("cpu  %02dms %03dus    ", cpu_time / 1000, cpu_time % 1000);

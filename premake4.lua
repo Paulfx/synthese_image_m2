@@ -3,7 +3,7 @@ solution "gKit2light"
 
 	platforms { "x64", "x32" }
 
---~     location "build"
+		location "build"
 --~     if _PREMAKE_VERSION >="4.4" then
 --~         debugdir "./"
 --~     end
@@ -207,3 +207,17 @@ for i, name in ipairs(tutosM2) do
 		files ( gkit_files )
 		files { gkit_dir .. "/tutos/M2/" .. name..'.cpp' }
 end
+
+project("tp1")
+    language "C++"
+    kind "ConsoleApp"
+    targetdir "bin"
+    files ( gkit_files )
+    files { gkit_dir .. "/tp/tp1/*.cpp" }
+
+project("test")
+    language "C++"
+    kind "ConsoleApp"
+    targetdir "bin"
+    files ( gkit_files )
+    files { gkit_dir .. "/tp/test/*.cpp" }
