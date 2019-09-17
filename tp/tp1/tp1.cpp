@@ -19,7 +19,7 @@ struct Buffers
     GLuint vao;
     GLuint vertex_buffer;
 
-    size_t vertexBufferSize;
+    size_t vertexBufferSize, normalBufferSize;
 
     GLuint materials_buffer; //Contient les indices des matérials
     int vertex_count;
@@ -39,10 +39,12 @@ struct Buffers
         //Les mesh doivent être identiques...
         //Pré condition
         keyframe_count = meshes.size();
+        
         vertexBufferSize = meshes[0].vertex_buffer_size();
+        normalBufferSize = meshes[0].normal_buffer_size(); //Ajout des normales
 
         //Pour ne pas perdre la dernière frame, on ajoute la kf 0 à la fin
-        size_t bufferSize = ( keyframe_count + 1) * vertexBufferSize;
+        size_t bufferSize = ( keyframe_count + 1) * ( vertexBufferSize + normalBufferSize);
 
         glGenBuffers(1, &vertex_buffer);
         glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
@@ -52,31 +54,16 @@ struct Buffers
         size_t offset = 0;
         for (unsigned i=0; i<meshes.size(); ++i) { 
             glBufferSubData(GL_ARRAY_BUFFER, offset, meshes[i].vertex_buffer_size(), meshes[i].vertex_buffer());
-            offset += meshes[i].vertex_buffer_size();
+            offset += vertexBufferSize;
+            glBufferSubData(GL_ARRAY_BUFFER, offset, meshes[i].normal_buffer_size(), meshes[i].normal_buffer());
+            offset += normalBufferSize;
         }
         //On rajoute la dernière keyframe
         glBufferSubData(GL_ARRAY_BUFFER, offset, meshes[0].vertex_buffer_size(), meshes[0].vertex_buffer());
+        glBufferSubData(GL_ARRAY_BUFFER, offset + normalBufferSize, meshes[0].normal_buffer_size(), meshes[0].normal_buffer());
+
 
         glGenVertexArrays(1, &vao);
-        glBindVertexArray(vao);
-
-        // attribut 0, position des sommets, declare dans le vertex shader : in vec3 position;
-        glVertexAttribPointer(0, 
-            3, GL_FLOAT,            // size et type, position est un vec3 dans le vertex shader
-            GL_FALSE,               // pas de normalisation des valeurs
-            0,                      // stride 0, les valeurs sont les unes a la suite des autres
-            0                      // offset
-        );
-        glEnableVertexAttribArray(0);
-
-        // attribut 1, position des sommets de la keyframe 2
-        glVertexAttribPointer(1, 
-            3, GL_FLOAT,            // size et type, position est un vec3 dans le vertex shader
-            GL_FALSE,               // pas de normalisation des valeurs
-            0,                      // stride 0, les valeurs sont les unes a la suite des autres
-            (const void *) vertexBufferSize   // Après la première keyframe
-        );
-        glEnableVertexAttribArray(1);
 
         vertex_count = meshes[0].vertex_count();
 
@@ -100,7 +87,6 @@ struct Buffers
             ns.push_back(materials[i].ns);
         }
 
-
         //Materials, on créé un buffer
         const std::vector<unsigned int> matIndex = meshes[0].materials();
 
@@ -109,7 +95,6 @@ struct Buffers
         for (std::vector<unsigned int>::const_iterator i = matIndex.begin(); i != matIndex.end(); ++i) {
             matIndexForVertex.insert(matIndexForVertex.end(), 3, *i); //3 fois le même indice
         }
-
 
         //Unsigned char => 256 materials max
         size_t bufferSize = matIndexForVertex.size() * sizeof(unsigned char);
@@ -125,28 +110,52 @@ struct Buffers
 
         glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
 
-        //Frame 0
+        const size_t bufferSize = vertexBufferSize + normalBufferSize;
+
+    //Frame 0
+
+        //Position
         glVertexAttribPointer(0, 
             3, GL_FLOAT,            // size et type, position est un vec3 dans le vertex shader
             GL_FALSE,               // pas de normalisation des valeurs
             0,                      // stride 0, les valeurs sont les unes a la suite des autres
-            (const void *) (nbFrame * vertexBufferSize)              // offset
+            (const void *) (nbFrame * bufferSize)              // offset
         );
         glEnableVertexAttribArray(0);
 
-        //Frame 1
+        //Normales
         glVertexAttribPointer(1, 
             3, GL_FLOAT,            // size et type, position est un vec3 dans le vertex shader
             GL_FALSE,               // pas de normalisation des valeurs
             0,                      // stride 0, les valeurs sont les unes a la suite des autres
-            (const void *) ( (nbFrame+1) * vertexBufferSize)   // Après la première keyframe
+            (const void *) (nbFrame * bufferSize + normalBufferSize)              // offset
         );
         glEnableVertexAttribArray(1);
 
+
+    //Frame 1
+        //Position
+        glVertexAttribPointer(2, 
+            3, GL_FLOAT,            // size et type, position est un vec3 dans le vertex shader
+            GL_FALSE,               // pas de normalisation des valeurs
+            0,                      // stride 0, les valeurs sont les unes a la suite des autres
+            (const void *) ( (nbFrame+1) * bufferSize)   // Après la première keyframe
+        );
+        glEnableVertexAttribArray(2);
+
+        //Normales
+        glVertexAttribPointer(3, 
+            3, GL_FLOAT,            // size et type, position est un vec3 dans le vertex shader
+            GL_FALSE,               // pas de normalisation des valeurs
+            0,                      // stride 0, les valeurs sont les unes a la suite des autres
+            (const void *) ((nbFrame+1) * bufferSize + normalBufferSize)              // offset
+        );
+        glEnableVertexAttribArray(3);
+
         //Pas de changement pour les matérials
         glBindBuffer(GL_ARRAY_BUFFER, materials_buffer);
-        glVertexAttribIPointer(2, 1, GL_UNSIGNED_BYTE, 0, 0);
-        glEnableVertexAttribArray(2);
+        glVertexAttribIPointer(4, 1, GL_UNSIGNED_BYTE, 0, 0);
+        glEnableVertexAttribArray(4);
 
     }
 
@@ -184,7 +193,6 @@ public:
         m_objet.create(meshes);
 
         Point pmin, pmax;
-        // meshes[0].bounds(pmin, pmax);
 
         pmin = Point(-10,-10,0);
         pmax = Point(10,10,0);
@@ -210,7 +218,6 @@ public:
     {
         m_objet.release();
         glDeleteTextures(1, &m_texture);
-
         release_program(m_program);
         
         return 0;
@@ -235,24 +242,39 @@ public:
         else if(mb & SDL_BUTTON(2))         // le bouton du milieu est enfonce
             m_camera.translation((float) mx / (float) window_width(), (float) my / (float) window_height());
 
+        int location;
+        glUseProgram(m_program);
+        glBindVertexArray(m_objet.vao);
 
         Transform view = m_camera.view();
         Transform projection = m_camera.projection(window_width(), window_height(), 45);
         Transform model;
         Transform mvp;
-
-        int location;
-        glUseProgram(m_program);
-
-        location = glGetUniformLocation(m_program, "mvpMatrix");
-
-        glBindVertexArray(m_objet.vao);
+        Transform mv;
 
         model = Identity();
         mvp = projection * view * model;
 
+        location = glGetUniformLocation(m_program, "mMatrix");
+        glUniformMatrix4fv(location, 1, GL_TRUE, model.buffer());
+
         //on envoie la mvp au shader
+        location = glGetUniformLocation(m_program, "mvpMatrix");
         glUniformMatrix4fv(location, 1, GL_TRUE, mvp.buffer());
+
+        //mv
+        location = glGetUniformLocation(m_program, "mvMatrix");
+        glUniformMatrix4fv(location, 1, GL_TRUE, mv.buffer());
+
+        location = glGetUniformLocation(m_program, "mvNormal");
+        glUniformMatrix4fv(location, 1, GL_TRUE, mv.normal().buffer());
+
+        //Camera pos
+        location = glGetUniformLocation(m_program, "viewPos");
+        Point p = m_camera.position();
+        //printf("Camera pos : x=%f, y=%f, z=%f\n", p.x, p.y, p.z);
+        glUniformMatrix3fv(location, 1, GL_TRUE, &p.x);
+
 
         const int nbFramePerSec = 24;
         const float frameTime = 1000.f / nbFramePerSec; //En ms
@@ -260,9 +282,8 @@ public:
         int nbFrame = (int) time % m_objet.keyframe_count;
         float interpolationFactor = time - (int) time; //partie fractionnaire
 
-        location = glGetUniformLocation(m_program, "time");
+        location = glGetUniformLocation(m_program, "t");
         glUniform1f(location, interpolationFactor);
-
 
         //Les materials
         location = glGetUniformLocation(m_program, "diffuse");
@@ -277,11 +298,7 @@ public:
         location = glGetUniformLocation(m_program, "ns");
         glUniform1fv(location, m_objet.NB_MATERIALS, m_objet.ns.data());
 
-
-        //On commence à un offset correspondant à la frame en question
-        //glDrawArrays(GL_TRIANGLES, m_objet.vertex_count * nbFrame, m_objet.vertex_count);
-            
-        //Version avec décalage de pointeur (MIEUX)
+        //Décalage de l'offset en fct du numéro de la frame
         m_objet.setPointer(nbFrame);
         glDrawArrays(GL_TRIANGLES, 0, m_objet.vertex_count);
         
