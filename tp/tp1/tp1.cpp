@@ -18,22 +18,20 @@ struct Buffers
 {
     GLuint vao;
     GLuint vertex_buffer;
+
+    size_t vertexBufferSize;
+
     GLuint materials_buffer; //Contient les indices des matérials
     int vertex_count;
     int keyframe_count;
 
     
-
     //On stocke les info des materials
-
-    //3 materials => variable?
     int NB_MATERIALS;
-
     std::vector<Color> diffuse;
     std::vector<Color> specular;
     std::vector<Color> emission;
     std::vector<float> ns;
-
 
     Buffers( ) : vao(0), vertex_buffer(0), vertex_count(0) {}
 
@@ -41,14 +39,10 @@ struct Buffers
         //Les mesh doivent être identiques...
         //Pré condition
         keyframe_count = meshes.size();
-
-        size_t vertexBufferSize = meshes[0].vertex_buffer_size();
+        vertexBufferSize = meshes[0].vertex_buffer_size();
 
         //Pour ne pas perdre la dernière frame, on ajoute la kf 0 à la fin
         size_t bufferSize = ( keyframe_count + 1) * vertexBufferSize;
-        //size_t bufferSize = keyframe_count * vertexBufferSize;
-
-        //printf("Buffer size = %ld\n", bufferSize);
 
         glGenBuffers(1, &vertex_buffer);
         glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
@@ -59,9 +53,6 @@ struct Buffers
         for (unsigned i=0; i<meshes.size(); ++i) { 
             glBufferSubData(GL_ARRAY_BUFFER, offset, meshes[i].vertex_buffer_size(), meshes[i].vertex_buffer());
             offset += meshes[i].vertex_buffer_size();
-
-
-
         }
         //On rajoute la dernière keyframe
         glBufferSubData(GL_ARRAY_BUFFER, offset, meshes[0].vertex_buffer_size(), meshes[0].vertex_buffer());
@@ -89,8 +80,10 @@ struct Buffers
 
         vertex_count = meshes[0].vertex_count();
 
-        //createMaterials(meshes);
+        createMaterials(meshes);
 
+        //On initialise les vertex attrib (au cas ou..)
+        setPointer(0);
     }
 
     void createMaterials(const std::vector<Mesh>& meshes) {
@@ -112,28 +105,56 @@ struct Buffers
         const std::vector<unsigned int> matIndex = meshes[0].materials();
 
         //On multiplie les indices pour chaque vertex
-        std::vector<unsigned char> matIndexForVertex( 3 * matIndex.size());
+        std::vector<unsigned char> matIndexForVertex;
         for (std::vector<unsigned int>::const_iterator i = matIndex.begin(); i != matIndex.end(); ++i) {
             matIndexForVertex.insert(matIndexForVertex.end(), 3, *i); //3 fois le même indice
         }
 
-        //Unsigned char => 256 materials max
-        size_t materialsBufferSize = matIndex.size() * sizeof(unsigned char);
 
+        //Unsigned char => 256 materials max
+        size_t bufferSize = matIndexForVertex.size() * sizeof(unsigned char);
         glGenBuffers(1, &materials_buffer);
         glBindBuffer(GL_ARRAY_BUFFER, materials_buffer);
-        glBufferData(GL_ARRAY_BUFFER, materialsBufferSize, &matIndex, GL_STATIC_DRAW);
 
-        //Vertex pointer
-        glVertexAttribIPointer(2, 1, GL_UNSIGNED_BYTE, 0, 0);
-        glEnableVertexAttribArray(2);
+        glBufferData(GL_ARRAY_BUFFER, bufferSize, matIndexForVertex.data(), GL_STATIC_DRAW);
     }
     
+    void setPointer(size_t nbFrame) {
+
+        glBindVertexArray(vao);
+
+        glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+
+        //Frame 0
+        glVertexAttribPointer(0, 
+            3, GL_FLOAT,            // size et type, position est un vec3 dans le vertex shader
+            GL_FALSE,               // pas de normalisation des valeurs
+            0,                      // stride 0, les valeurs sont les unes a la suite des autres
+            (const void *) (nbFrame * vertexBufferSize)              // offset
+        );
+        glEnableVertexAttribArray(0);
+
+        //Frame 1
+        glVertexAttribPointer(1, 
+            3, GL_FLOAT,            // size et type, position est un vec3 dans le vertex shader
+            GL_FALSE,               // pas de normalisation des valeurs
+            0,                      // stride 0, les valeurs sont les unes a la suite des autres
+            (const void *) ( (nbFrame+1) * vertexBufferSize)   // Après la première keyframe
+        );
+        glEnableVertexAttribArray(1);
+
+        //Pas de changement pour les matérials
+        glBindBuffer(GL_ARRAY_BUFFER, materials_buffer);
+        glVertexAttribIPointer(2, 1, GL_UNSIGNED_BYTE, 0, 0);
+        glEnableVertexAttribArray(2);
+
+    }
+
     
     void release( )
     {
         glDeleteBuffers(1, &vertex_buffer);
-        //glDeleteBuffers(1, &materials_buffer);
+        glDeleteBuffers(1, &materials_buffer);
         glDeleteVertexArrays(1, &vao);
     }
 };
@@ -242,27 +263,27 @@ public:
         location = glGetUniformLocation(m_program, "time");
         glUniform1f(location, interpolationFactor);
 
-        // location = glGetUniformLocation(m_program, "color");
-        // glUniform4f(location, 1,1,0,1);
-
 
         //Les materials
-        // location = glGetUniformLocation(m_program, "diffuse");
-        // glUniform4fv(location, m_objet.NB_MATERIALS, &m_objet.diffuse[0].r);
+        location = glGetUniformLocation(m_program, "diffuse");
+        glUniform4fv(location, m_objet.NB_MATERIALS, &m_objet.diffuse[0].r);
 
-        // location = glGetUniformLocation(m_program, "specular");
-        // glUniform4fv(location, m_objet.NB_MATERIALS, &m_objet.specular[0].r);
+        location = glGetUniformLocation(m_program, "specular");
+        glUniform4fv(location, m_objet.NB_MATERIALS, &m_objet.specular[0].r);
 
-        // location = glGetUniformLocation(m_program, "emission");
-        // glUniform4fv(location, m_objet.NB_MATERIALS, &m_objet.emission[0].r);
+        location = glGetUniformLocation(m_program, "emission");
+        glUniform4fv(location, m_objet.NB_MATERIALS, &m_objet.emission[0].r);
 
-        // location = glGetUniformLocation(m_program, "ns");
-        // glUniform1fv(location, m_objet.NB_MATERIALS, m_objet.ns.data());
+        location = glGetUniformLocation(m_program, "ns");
+        glUniform1fv(location, m_objet.NB_MATERIALS, m_objet.ns.data());
 
 
-        
         //On commence à un offset correspondant à la frame en question
-        glDrawArrays(GL_TRIANGLES, m_objet.vertex_count * nbFrame, m_objet.vertex_count);
+        //glDrawArrays(GL_TRIANGLES, m_objet.vertex_count * nbFrame, m_objet.vertex_count);
+            
+        //Version avec décalage de pointeur (MIEUX)
+        m_objet.setPointer(nbFrame);
+        glDrawArrays(GL_TRIANGLES, 0, m_objet.vertex_count);
         
         return 1;
     }
