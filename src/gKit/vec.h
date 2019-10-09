@@ -2,6 +2,8 @@
 #ifndef _VEC_H
 #define _VEC_H
 
+#include "color.h" //tpm2
+
 
 //! \addtogroup math
 ///@{
@@ -177,7 +179,10 @@ struct vec4
     vec4( const Point& a );    // l'implementation se trouve en fin de fichier.
     //! cree un vecteur generique a partir des coordonnees du vecteur v, (v.x, v.y, v.z, 0).
     vec4( const Vector& v );    // l'implementation se trouve en fin de fichier.
-    
+        
+    //tpM2
+    vec4(const Color& c) : x(c.r), y(c.g), z(c.b), w(c.a) {};
+
     //! renvoie la ieme composante du vecteur.
     float operator() ( const unsigned int i ) const { return (&x)[i]; }
     float& operator() ( const unsigned int i ) { return (&x)[i]; }
