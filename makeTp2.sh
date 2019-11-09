@@ -1,0 +1,1 @@
+cd build; make -j6 tp2 config=release64; cd ..; bin/tp2 tp/tp2/cornell.obj tp/tp2/orbiter.txt;
