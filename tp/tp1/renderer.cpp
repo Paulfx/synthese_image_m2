@@ -1,0 +1,640 @@
+#include "renderer.h"
+
+// creation des objets de l'application
+int Renderer::init() {
+    createPrograms();
+
+    createObjects();
+
+    //Create ssbo
+    createSSBO();
+
+    createDepthFrameBuffer();
+
+
+    // etat openGL par defaut
+    glClearColor(0.2f, 0.2f, 0.2f, 1.f);        // couleur par defaut de la fenetre
+    
+    glClearDepth(1.f);                          // profondeur par defaut
+    glDepthFunc(GL_LESS);                       // ztest, conserver l'intersection la plus proche de la camera
+    glEnable(GL_DEPTH_TEST);                    // activer le ztest
+
+    // m_framebuffer_width = window_width();
+    // m_framebuffer_height = window_height();
+
+    orthoProjShadowMap = Ortho(-50,50,-50,50,0.1f,150.f);
+
+
+    return 0;   // ras, pas d'erreur
+}
+
+void Renderer::createPrograms() {
+	GLuint staticVertex_shadowMap = compileShader("tp/tp1/shaders/shadowMap/staticVertex.glsl", GL_VERTEX_SHADER);
+	GLuint dynamicVertex_shadowMap = compileShader("tp/tp1/shaders/shadowMap/dynamicVertex.glsl", GL_VERTEX_SHADER);
+	GLuint fragment_shadowMap = compileShader("tp/tp1/shaders/shadowMap/fragment.glsl", GL_FRAGMENT_SHADER);
+
+	createProgramAndLinkShaders(m_staticShadowMap_program, staticVertex_shadowMap, fragment_shadowMap);
+	createProgramAndLinkShaders(m_dynamicShadowMap_program, dynamicVertex_shadowMap, fragment_shadowMap);
+
+    //Different vertex shader but same fragment shader
+    GLuint fragmentShader = compileShader("tp/tp1/shaders/fragment.glsl", GL_FRAGMENT_SHADER);
+    GLuint staticVertex = compileShader("tp/tp1/shaders/staticVertex.glsl", GL_VERTEX_SHADER);
+    GLuint dynamicVertex = compileShader("tp/tp1/shaders/dynamicVertex.glsl", GL_VERTEX_SHADER);
+
+    createProgramAndLinkShaders(m_programStatic, staticVertex, fragmentShader);
+    createProgramAndLinkShaders(m_programDynamic, dynamicVertex, fragmentShader);
+}
+
+GLuint Renderer::compileShader(const char* filename, const GLenum shader_type) {
+	std::stringbuf source;
+    std::ifstream in(filename);
+    if(in.good() == false)
+        printf("[error] loading program '%s'...\n", filename);
+    else
+        printf("loading program '%s'...\n", filename);
+
+    in.get(source, 0);        // lire tout le fichier, le caractere '\0' ne peut pas se trouver dans le source de shader
+    std::string sourceStr = source.str();
+
+    GLuint shader = glCreateShader(shader_type);
+
+    const char *sources = sourceStr.c_str();
+    glShaderSource(shader, 1, &sources, NULL);
+    glCompileShader(shader);
+
+    GLint status;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
+
+    if (status == GL_FALSE) {
+    	printf("[error] compiling shader %s\n", filename);
+
+    	GLint maxLength = 0;
+	glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &maxLength);
+
+	// The maxLength includes the NULL character
+	std::vector<GLchar> errorLog(maxLength);
+	glGetShaderInfoLog(shader, maxLength, &maxLength, &errorLog[0]);
+
+		for (int i=0; i < maxLength; ++i) {
+			printf("%c", errorLog[i]);
+		}
+		glDeleteShader(shader); // Don't leak the shader.
+    }
+
+    return (status == GL_TRUE) ? shader : 0;
+}
+
+void Renderer::createProgramAndLinkShaders(GLuint &program, GLuint v_shader, GLuint f_shader) {
+
+	program = glCreateProgram();
+
+    glAttachShader(program, v_shader);
+    glAttachShader(program, f_shader);
+    glLinkProgram(program);
+
+    // verifie les erreurs
+    GLint status;
+    glGetProgramiv(program, GL_LINK_STATUS, &status);
+    if(status == GL_FALSE)
+    {
+        printf("[error] linking program %u...\n", program);
+    }
+
+    program_print_errors(program);
+}
+
+void Renderer::createObjects() {
+
+    addAnimatedObj("tp/tp1/objects/Robot/run/Robot_0000", 23);
+    m_animatedModels.push_back(Translation(2,0,2));
+
+    addAnimatedObj("tp/tp1/objects/Dog/Dog_0000",39);
+    m_animatedModels.push_back(Translation(6,0,0) * Scale(0.5,0.5,0.5));
+
+    addAnimatedObj("tp/tp1/objects/Wolf/Wolf_0000", 40);
+    m_animatedModels.push_back(Translation(-6,0,0));
+
+    addAnimatedObj("tp/tp1/objects/Shark/Shark_0000", 30);
+    m_animatedModels.push_back(Translation(7,3,0));
+    
+    addStaticObj("tp/tp1/objects/parkLamp/streetLight.obj");
+    m_staticModels.push_back(Scale(5,5,5) * Translation(-2,0,0));
+
+    addStaticObj("tp/tp1/objects/Nature_pack/OBJ/CommonTree_1.obj");
+    m_staticModels.push_back(Scale(5,5,5) * Translation(-3,0,-3));
+
+    addStaticObj("tp/tp1/objects/Nature_pack/OBJ/Cactus_4.obj");
+    m_staticModels.push_back(Scale(10,10,10) * Translation(-3,0,-3.5));
+
+    addStaticObj("tp/tp1/objects/Nature_pack/OBJ/Wheat.obj");
+    m_staticModels.push_back(Translation(5,8,10));
+
+    //Lights
+    // m_lights.push_back(Light(Point(-10,14,0), 10, White()));
+    m_lights.push_back(Light(Point(5,8,10), 10, White()));
+    m_lights.push_back(Light(Point(10,10,0), 5, White()));
+
+
+}
+
+void Renderer::createDepthFrameBuffer() {
+
+    // etape 1 : creer une texture couleur...
+    glGenTextures(1, &m_color_buffer);
+    glBindTexture(GL_TEXTURE_2D, m_color_buffer);
+    
+    glTexImage2D(GL_TEXTURE_2D, 0,
+        GL_RGBA, m_framebuffer_width, m_framebuffer_height, 0,
+        GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+    // ... et tous ses mipmaps
+    //glGenerateMipmap(GL_TEXTURE_2D);
+    
+    // et son sampler
+    glGenSamplers(1, &m_color_sampler);
+    
+    glSamplerParameteri(m_color_sampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glSamplerParameteri(m_color_sampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glSamplerParameteri(m_color_sampler, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glSamplerParameteri(m_color_sampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
+    glGenTextures(1, &m_depth_buffer);
+    glBindTexture(GL_TEXTURE_2D, m_depth_buffer);
+    
+    glTexImage2D(GL_TEXTURE_2D, 0,
+        GL_DEPTH_COMPONENT, m_framebuffer_width, m_framebuffer_height, 0,
+        GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+    
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER); 
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
+
+    // etape 2 : creer et configurer un framebuffer object
+    glGenFramebuffers(1, &m_framebuffer);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_framebuffer);
+     glFramebufferTexture(GL_DRAW_FRAMEBUFFER,  /* attachment */ GL_COLOR_ATTACHMENT0, /* texture */ m_color_buffer, /* mipmap level */ 0);
+    glFramebufferTexture(GL_DRAW_FRAMEBUFFER,  /* attachment */ GL_DEPTH_ATTACHMENT, /* texture */ m_depth_buffer, /* mipmap level */ 0);
+    
+    // // le fragment shader ne declare qu'une seule sortie, indice 0
+    GLenum buffers[]= { GL_COLOR_ATTACHMENT0 };
+    glDrawBuffers(1, buffers);
+    // glDrawBuffer(GL_NONE);
+    // glReadBuffer(GL_NONE);
+    // glDrawBuffer(GL_NONE);
+
+    // nettoyage
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+}
+
+void Renderer::createSSBO() {
+    glGenBuffers(1, &m_ssbo);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_ssbo);
+
+    //On alloue une taille de 10 materiaux pour être sur d'avoir la place de les stocker
+    glBufferData(GL_SHADER_STORAGE_BUFFER,  numberOfLights * sizeof(Light) + max_materials * sizeof(Material_glsl), nullptr, GL_DYNAMIC_READ);
+}
+
+void Renderer::putLightsInSSBO() {
+    const int lightSize = numberOfLights * sizeof(Light);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_ssbo);
+    glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, lightSize, m_lights.data());
+}
+
+void Renderer::putMaterialsInSSBO(const Buffers& obj) {
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_ssbo);
+    assert(obj.materials.size() <= max_materials);
+    glBufferSubData(GL_SHADER_STORAGE_BUFFER, numberOfLights * sizeof(Light), obj.materials.size() * sizeof(Material_glsl), obj.materials.data());
+}
+
+// destruction des objets de l'application
+int Renderer::quit() {
+    for (int i=0; i<m_animatedObj.size(); ++i)
+        m_animatedObj[i].release();
+    for (int i=0; i<m_staticObj.size(); ++i)
+        m_staticObj[i].release();
+    
+    glDeleteBuffers(1, &m_ssbo);
+    glDeleteBuffers(1, &m_framebuffer);
+
+    glDeleteTextures(1, &m_color_buffer);
+    glDeleteTextures(1, &m_depth_buffer);
+
+    release_program(m_staticShadowMap_program);
+    release_program(m_dynamicShadowMap_program);
+    release_program(m_programDynamic);
+    release_program(m_programStatic);
+    return 0;
+}
+
+void Renderer::addAnimatedObj(const std::string& beginFilePath, int nb) {
+
+    std::vector<Mesh> meshes;
+    std::string meshFile, numStr;
+    for (int i = 1; i <= nb; ++i)
+    {
+        if (i < 10) numStr = "0";
+        else numStr = "";
+        numStr += std::to_string(i);
+        meshFile = beginFilePath + numStr + ".obj";
+        meshes.push_back(read_mesh(meshFile.c_str()));
+    }
+
+    //Create all keyframes
+    Buffers b;
+    b.create(meshes);
+    m_animatedObj.push_back(b);
+}
+
+int Renderer::addStaticObj(const std::string& filePath) {
+    int index = m_staticObj.size();
+    Buffers b;
+    b.create(read_mesh(filePath.c_str()));
+    m_staticObj.push_back(b);
+    return index;
+}
+
+int Renderer::update(const float time, const float delta) {
+
+    // deplace la camera
+    int mx, my;
+    unsigned int mb= SDL_GetRelativeMouseState(&mx, &my);
+    if(mb & SDL_BUTTON(1))              // le bouton gauche est enfonce
+        m_camera.rotation(mx, my);
+    else if(mb & SDL_BUTTON(3))         // le bouton droit est enfonce
+        m_camera.move(mx);
+    else if(mb & SDL_BUTTON(2))         // le bouton du milieu est enfonce
+        m_camera.translation((float) mx / (float) window_width(), (float) my / (float) window_height());
+
+    updateModels();
+
+    return 0;
+}
+
+
+void Renderer::updateModels() {
+
+    //TODO connaitre indice du chien, etc...
+    float t = global_time();
+    float x = sin(t / 1000) * 10;
+    float z = cos(t / 1000) * 10;
+    Transform T = Translation(x,0,z) * RotationY(t/100.f) * Scale(0.5,0.5,0.5);
+
+    m_animatedModels[DOG] = T;
+
+    const int rSun = 1;
+
+    // const float angle = (t - (int) t) * 360.f;
+    // //const float angle = (int) t % 360;
+
+    // T = RotationX(angle);
+    // m_lights[0].pos = vec3(T(Point(10,0,-10))); 
+
+      
+
+    // T = Translation(sin(t/4000) * rSun, -cos(t/5000) * rSun, 0);
+    // m_lights[0].pos = vec3(T(Point(m_lights[0].pos)));
+
+    // printf("h:%f %f %f\n", m_lights[0].pos.x, m_lights[0].pos.y, m_lights[0].pos.z);
+
+}
+
+// dessiner une nouvelle image
+int Renderer::render() {
+    //Passe 1
+    shadowMapRender();
+    
+    if (key_state(' ')) {
+
+        //Afficher le depth buffer
+
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, m_framebuffer);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+        glViewport(0, 0, window_width(), window_height());
+        glClearColor(0.2, 0.2, 0.2, 1);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+        glBlitFramebuffer(
+            0, 0, m_framebuffer_width, m_framebuffer_height,        // rectangle origine dans READ_FRAMEBUFFER
+            0, 0, m_framebuffer_width, m_framebuffer_height,        // rectangle destination dans DRAW_FRAMEBUFFER
+            GL_COLOR_BUFFER_BIT, GL_LINEAR);                        // ne copier que la couleur (+ interpoler)
+
+    }
+    else {
+
+        normalRender();
+    }
+
+    //glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_ssbo);
+    
+    return 1;
+}
+
+Transform Renderer::Ortho(const float left, const float right, const float bottom, const float top, const float znear, const float zfar) {
+float tx= - (right + left) / (right - left);
+float ty= - (top + bottom) / (top - bottom);
+float tz= - (zfar + znear) / (zfar - znear);
+
+return Transform(
+    2.f / (right - left),                    0,                     0, tx,
+                       0, 2.f / (top - bottom),                     0, ty,
+    0,                                       0, -2.f / (zfar - znear), tz,
+    0,                                       0,                     0, 1);
+}
+
+Transform Renderer::getViewFromLight(vec3 pos) {
+    //return m_camera.view();
+    return Lookat(pos, Point(0,0,0), Vector(0,1,0));
+
+    //return Translation(pos.x,pos.y,pos.z) * RotationX(90);
+}
+
+
+void Renderer::shadowMapRender() {
+    
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_framebuffer);
+    glViewport(0, 0, m_framebuffer_width, m_framebuffer_height);
+    //glClearColor(1, 1, 0, 1);
+    glClear(GL_DEPTH_BUFFER_BIT);
+
+    //Transform v = Translation(-m_lights[0].pos.x, -m_lights[0].pos.y, -m_lights[0].pos.z);// * RotationY(global_time()/1000) * RotationZ(global_time()/1000);
+    
+
+    //Transform v = Lookat(m_lights[0].pos, Point(0,0,0), Vector(0,1,0));
+
+    Transform v = getViewFromLight(m_lights[0].pos);
+    Transform p = orthoProjShadowMap;
+    
+
+    // Transform v = m_camera.view();
+    // Transform p = m_camera.projection(window_width(), window_height(), 45);
+
+    Transform vp = p*v;
+    Transform depthMVP;
+
+    int location;
+
+    //Animated objects
+    glUseProgram(m_dynamicShadowMap_program);
+    for (int i=0; i<m_animatedObj.size(); ++i) {
+
+        depthMVP = vp * m_animatedModels[i];
+
+        location = glGetUniformLocation(m_dynamicShadowMap_program, "depthMVP");
+        glUniformMatrix4fv(location, 1, GL_TRUE, depthMVP.buffer());
+
+        const int nbFramePerSec = 24;
+        const float frameTime = 1000.f / nbFramePerSec; //En ms
+        float time = global_time() / frameTime; //Ex : 1.5 entre frame 1 et 2
+        int nbFrame = (int) time % m_animatedObj[i].keyframe_count;
+        float interpolationFactor = time - (int) time; //partie fractionnaire
+
+        //Décalage de l'offset en fct du numéro de la frame
+        m_animatedObj[i].setPointer(nbFrame);
+
+        glUniform1f(glGetUniformLocation(m_dynamicShadowMap_program, "t"), interpolationFactor);
+
+        glBindVertexArray(m_animatedObj[i].vao);
+        glDrawArrays(GL_TRIANGLES, 0, m_animatedObj[i].vertex_count);
+    }
+
+    //Static objects
+
+    glUseProgram(m_staticShadowMap_program);
+    for (int i=0; i<m_staticObj.size(); ++i) {
+
+        depthMVP = vp * m_staticModels[i];
+
+        location = glGetUniformLocation(m_staticShadowMap_program, "depthMVP");
+        glUniformMatrix4fv(location, 1, GL_TRUE, depthMVP.buffer());
+
+
+        glBindVertexArray(m_staticObj[i].vao);
+        glDrawArrays(GL_TRIANGLES, 0, m_staticObj[i].vertex_count);
+
+
+    }
+
+}
+
+void Renderer::normalRender() {
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glViewport(0, 0, window_width(), window_height());
+    glClearColor(0.2f, 0.2f, 0.2f, 1.f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    //glUniform1i(glGetUniformLocation(m_programStatic, "shadowMap"), 0);
+    
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, m_depth_buffer);
+    //glBindSampler(0, m_color_sampler);
+
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, miplevels(m_framebuffer_width, m_framebuffer_height));
+    // glGenerateMipmap(GL_TEXTURE_2D);
+
+    putLightsInSSBO();
+    renderAnimatedObj();
+    renderStaticObj();
+
+}
+
+// Renderer::void renderRobot() {
+//     setUniform(m_programStatic, robotModel, m_robot);
+
+//     const float F0 = 1.f;
+//     glUniform1f(glGetUniformLocation(m_programStatic, "F0"), F0);
+
+//     const float alpha = 0.5f;
+//     glUniform1f(glGetUniformLocation(m_programStatic, "alpha"), alpha);
+
+//     const int nbFramePerSec = 24;
+//     const float frameTime = 1000.f / nbFramePerSec; //En ms
+//     float time = global_time() / frameTime; //Ex : 1.5 entre frame 1 et 2
+//     int nbFrame = (int) time % m_robot.keyframe_count;
+//     float interpolationFactor = time - (int) time; //partie fractionnaire
+
+//     glUniform1f(glGetUniformLocation(m_programStatic, "t"), interpolationFactor);
+
+//     //Décalage de l'offset en fct du numéro de la frame
+//     m_robot.setPointer(nbFrame);
+
+//     glBindVertexArray(m_robot.vao);
+//     glDrawArrays(GL_TRIANGLES, 0, m_robot.vertex_count);
+// }
+
+void Renderer::renderAnimatedObj() {
+
+    glUseProgram(m_programDynamic);
+
+    glUniform1i(glGetUniformLocation(m_programDynamic, "shadowMap"), 0);
+
+    for (int i=0; i<m_animatedObj.size(); ++i) {
+
+        //ssbo materials
+        putMaterialsInSSBO(m_animatedObj[i]);
+
+        //TODO different models
+        //Same shader
+        setUniform(m_programDynamic, m_animatedModels[i]);
+
+        
+
+        //TODO stocker ça dans info objets! Buffers == obj?
+        const float F0 = 1.f;
+        glUniform1f(glGetUniformLocation(m_programDynamic, "F0"), F0);
+
+        const float alpha = 0.5f;
+        glUniform1f(glGetUniformLocation(m_programDynamic, "alpha"), alpha);
+
+        const int nbFramePerSec = 24;
+        const float frameTime = 1000.f / nbFramePerSec; //En ms
+        float time = global_time() / frameTime; //Ex : 1.5 entre frame 1 et 2
+        int nbFrame = (int) time % m_animatedObj[i].keyframe_count;
+        float interpolationFactor = time - (int) time; //partie fractionnaire
+
+        glUniform1f(glGetUniformLocation(m_programDynamic, "t"), interpolationFactor);
+
+        //Décalage de l'offset en fct du numéro de la frame
+        m_animatedObj[i].setPointer(nbFrame);
+
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_ssbo);
+
+        glBindVertexArray(m_animatedObj[i].vao);
+        glDrawArrays(GL_TRIANGLES, 0, m_animatedObj[i].vertex_count);
+    }
+}
+
+void Renderer::renderStaticObj() {
+    
+    glUseProgram(m_programStatic);
+    glUniform1i(glGetUniformLocation(m_programStatic, "shadowMap"), 0);
+
+    for (int i=0; i<m_staticObj.size(); ++i) {
+
+        //ssbo materials
+        putMaterialsInSSBO(m_staticObj[i]);
+
+        //TODO different models
+        //Same shader
+        setUniform(m_programStatic, m_staticModels[i]);
+
+
+        //TODO stocker ça dans info objets! Buffers == obj?
+        const float F0 = 1.f;
+        glUniform1f(glGetUniformLocation(m_programStatic, "F0"), F0);
+
+        const float alpha = 0.5f;
+        glUniform1f(glGetUniformLocation(m_programStatic, "alpha"), alpha);
+
+        //m_staticObj[i].setPointer(0);
+
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_ssbo);
+
+
+        glBindVertexArray(m_staticObj[i].vao);
+        glDrawArrays(GL_TRIANGLES, 0, m_staticObj[i].vertex_count);
+
+
+    }
+}
+/*
+void Renderer::renderLamp() {        
+    setUniform(m_programStatic, lampModel, m_lamp);
+
+    const float F0 = 1.f;
+    glUniform1f(glGetUniformLocation(m_programStatic, "F0"), F0);
+
+    const float alpha = 0.5f;
+    glUniform1f(glGetUniformLocation(m_programStatic, "alpha"), alpha);
+
+    glBindVertexArray(m_lamp.vao);
+    // dessiner les triangles de l'objet
+    glDrawArrays(GL_TRIANGLES, 0, m_lamp.vertex_count);
+}
+*/
+
+//void Renderer::updateAndBindSSBOForObject(ObjectIndex oIndex, ObjectType oType) {
+
+//    //On met les bons materials après les lumières
+
+//    std::vector<Buffers> &obj = (oType == ANIMATED) ? m_animatedObj : m_staticObj;
+
+//    glBufferSubData(GL_SHADER_STORAGE_BUFFER, numberOfLights * sizeof(Light), max_materials * sizeof(Material_glsl), obj.data());
+//}
+
+
+void Renderer::setUniform(GLuint program, const Transform& model) {
+    Transform view = m_camera.view();
+    Transform projection = m_camera.projection(window_width(), window_height(), 45);
+    
+
+    //Transform projection = Ortho(-100,100,-100,100,0.1f,1000.f);
+
+    Transform mvp = projection * view * model;
+    Transform mv = view * model;
+
+    //Transform vDepth = Lookat(m_lights[0].pos, Point(0,0,0), Vector(0,1,0));
+    Transform vDepth = getViewFromLight(m_lights[0].pos);
+
+    Transform pDepth = orthoProjShadowMap;
+
+    // Transform vDepth = view;
+    // Transform pDepth = projection;
+
+
+    Transform mvpDepth = pDepth*vDepth*model;
+
+
+
+
+
+    int location;
+
+    glUseProgram(program);
+    location = glGetUniformLocation(program, "depthMVP");
+    glUniformMatrix4fv(location, 1, GL_TRUE, mvpDepth.buffer());
+
+    location = glGetUniformLocation(program, "mvpMatrix");
+    glUniformMatrix4fv(location, 1, GL_TRUE, mvp.buffer());
+    location = glGetUniformLocation(program, "mMatrix");
+    glUniformMatrix4fv(location, 1, GL_TRUE, model.buffer());
+    location = glGetUniformLocation(program, "mNormal");
+    glUniformMatrix4fv(location, 1, GL_TRUE, model.normal().buffer());
+    location = glGetUniformLocation(program, "mvMatrix");
+    glUniformMatrix4fv(location, 1, GL_TRUE, mv.buffer());
+    location = glGetUniformLocation(program, "mvNormal");
+    glUniformMatrix4fv(location, 1, GL_TRUE, mv.normal().buffer());
+    //Camera pos
+    location = glGetUniformLocation(program, "camera");
+    Point p = m_camera.position(); //Repère du monde
+    glUniform3fv(location, 1, &p.x);
+
+    //const int NB_LIGHTS = 2;
+    //Light pos
+    //location = glGetUniformLocation(program, "lightPosition");
+    //glUniform3fv(location, NB_LIGHTS, &lightPos[0].x);
+    //glUniform3fv(location, 1, &p.x);
+
+    //Light col
+    //location = glGetUniformLocation(program, "lightColor");
+    //glUniform4fv(location, NB_LIGHTS, &lightColor[0].r);
+
+    //TODO storage buffer
+
+
+    //Les materials (uniform arrays)
+    // location = glGetUniformLocation(program, "diffuse");
+    // glUniform4fv(location, buffer.NB_MATERIALS, &buffer.diffuse[0].r);
+
+    // location = glGetUniformLocation(program, "specular");
+    // glUniform4fv(location, buffer.NB_MATERIALS, &buffer.specular[0].r);
+
+    // location = glGetUniformLocation(program, "emission");
+    // glUniform4fv(location, buffer.NB_MATERIALS, &buffer.emission[0].r);
+
+    // location = glGetUniformLocation(program, "ns");
+    // glUniform1fv(location, buffer.NB_MATERIALS, buffer.ns.data());
+}
