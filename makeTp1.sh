@@ -1,0 +1,1 @@
+cd build; make -j4 tp1; cd ..; bin/tp1;

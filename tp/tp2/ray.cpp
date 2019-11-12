@@ -336,7 +336,7 @@ int main( const int argc, const char **argv )
                 //couleur réfléchie par p dans la direction o
                 Color brdf= 1.f / float(M_PI) * material.diffuse;
 
-                const int N = 64;
+                const int N = 256;
                 Point sample;
                 //Pour toutes les sources
                 for (int s=0; s<sources.size(); ++s) {
@@ -374,7 +374,6 @@ int main( const int argc, const char **argv )
             
             //Tonemapper le résultat
             const float inv_gamma = 1/2.2f;
-
             color.r = std::pow(color.r,inv_gamma); 
             color.g = std::pow(color.g,inv_gamma); 
             color.b = std::pow(color.b,inv_gamma); 

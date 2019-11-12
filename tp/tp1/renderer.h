@@ -77,7 +77,7 @@ protected:
 
     GLuint m_ssbo;
     const int numberOfLights = 2;
-    const int max_materials = 10;
+    const int max_materials = 100;
 
     std::vector<Buffers> m_animatedObj;
     std::vector<Transform> m_animatedModels;
