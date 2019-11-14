@@ -25,8 +25,8 @@ out vec4 fragment_color;
 
 uniform sampler2D shadowMap;
 in vec4 pDepth;
-in vec3 nDepth;//normal in light space
 
+//Repère du monde
 in vec3 p;
 in vec3 n;
 flat in int matIndex;
@@ -49,6 +49,8 @@ float shadowCalculations(vec4 positionLightSpace, vec3 normal, vec3 lightDir) {
     
     float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
     //bias = 0.005;
+
+    //if (projCoords.z > 1.0) return 1.0;
     return currentDepth - bias > closestDepth ? 0.0 : 1.0;
 }
 
@@ -77,10 +79,10 @@ void main( )
     float cos_theta_h= max(0, dot(nn, h));
     float cos_theta_o= max(0, dot(nn, o));
     // meme hemisphere
-    if(cos_theta <= 0 || cos_theta_h <= 0 || cos_theta_o <= 0) {
-        fragment_color = vec4(0,0,0,1);
-        return;
-    }
+    // if(cos_theta <= 0 || cos_theta_h <= 0 || cos_theta_o <= 0) {
+    //     fragment_color = vec4(0,0,0,1);
+    //     return;
+    // }
     // D
     float D= alpha / (1 + cos_theta_h*cos_theta_h * (alpha*alpha -1));
     D= D*D / PI;
@@ -106,10 +108,5 @@ void main( )
     vec3 color= shadow * materials[matIndex].diffuse.rgb * lights[0].intensity * fr * cos_theta;
 
 
-    fragment_color = vec4(color,1);    
-    //fragment_color = vec4(nn,1);
-
-    //fragment_color = vec4(0,0,pDepth.z,1);
-
-    //fragment_color = lights[0].color;
+    fragment_color = vec4(color,1);
 }

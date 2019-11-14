@@ -116,11 +116,10 @@ void Renderer::createObjects() {
 
     //Lights
     
-    //Position de la street lamp
-    //m_lights.push_back(Light(Point(15,20,32), 15, White()));
-    
     //Soleil
     m_lights.push_back(Light(Point(50,50,60), 15, White()));
+    //Position de la street lamp
+    m_lights.push_back(Light(Point(15,20,32), 15, White()));
 }
 
 void Renderer::createDepthFrameBuffer() {
@@ -203,11 +202,14 @@ int Renderer::quit() {
 
     glDeleteTextures(1, &m_color_buffer);
     glDeleteTextures(1, &m_depth_buffer);
+    glDeleteSamplers(1, &m_color_sampler);
 
+    //TODO glDeleteShader une seule fois pour le fragment, qui est lié aux deux à chaque fois
     release_program(m_staticShadowMap_program);
     release_program(m_dynamicShadowMap_program);
     release_program(m_programDynamic);
     release_program(m_programStatic);
+
     return 0;
 }
 
@@ -491,6 +493,8 @@ void Renderer::setUniform(GLuint program, const Transform& model) {
     glUniformMatrix4fv(location, 1, GL_TRUE, mv.buffer());
     location = glGetUniformLocation(program, "mvNormal");
     glUniformMatrix4fv(location, 1, GL_TRUE, mv.normal().buffer());
+    location = glGetUniformLocation(program, "mvpNormal");
+    glUniformMatrix4fv(location, 1, GL_TRUE, mvp.normal().buffer());
     //Camera pos
     location = glGetUniformLocation(program, "camera");
     Point p = m_camera.position(); //Repère du monde

@@ -73,8 +73,6 @@ public:
 
 protected:
     
-    //AnimationBuffers m_robot;
-
     GLuint m_ssbo;
     const int numberOfLights = 2;
     const int max_materials = 100;

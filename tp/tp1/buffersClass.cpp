@@ -10,6 +10,7 @@ void Buffers::create( const Mesh& mesh ) {
 
     vertexBufferSize = mesh.vertex_buffer_size();
     normalBufferSize = mesh.normal_buffer_size();
+
     // conserve le nombre de sommets
     vertex_count= mesh.vertex_count();
     //Nombre de keyframe = 1
@@ -18,7 +19,9 @@ void Buffers::create( const Mesh& mesh ) {
     // cree et initialise le buffer: conserve la positions des sommets
     glGenBuffers(1, &vertex_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-    glBufferData(GL_ARRAY_BUFFER, vertexBufferSize + normalBufferSize, mesh.vertex_buffer(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertexBufferSize + normalBufferSize, nullptr, GL_STATIC_DRAW);
+
+    glBufferSubData(GL_ARRAY_BUFFER, 0, vertexBufferSize, mesh.vertex_buffer());
 
     //On ajoute les normales
     glBufferSubData(GL_ARRAY_BUFFER, vertexBufferSize, normalBufferSize, mesh.normal_buffer());

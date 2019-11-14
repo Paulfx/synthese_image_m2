@@ -14,10 +14,10 @@ uniform mat4 mMatrix;
 uniform mat4 mvMatrix;
 uniform mat4 mNormal;
 uniform mat4 mvNormal;
+uniform mat4 mvpNormal;
 
 uniform mat4 depthMVP;
 out vec4 pDepth;
-out vec3 nDepth;
 
 uniform float t; //Entre 0 et 1
 
@@ -33,12 +33,10 @@ void main( )
    	
    	vec3 normal = mix(normal0, normal1, t);
    	//Repère du monde
-   	n = mat3(mvNormal) * normal;
-   	p = vec3(mvMatrix * vec4(position, 1));
+   	n = mat3(mNormal) * normal;
+   	p = vec3(mMatrix * vec4(position, 1));
 
    	gl_Position= mvpMatrix * vec4(position, 1);
 
     pDepth = depthMVP * vec4(position, 1);
-    nDepth = mat3(depthMVP) * normal;
-
 }
