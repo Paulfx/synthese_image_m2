@@ -23,7 +23,32 @@ int Renderer::init() {
     //Load orbiter
     m_camera.read_orbiter("tp/tp1/objects/orbiter.txt");
 
+    initSkyBox();
+
     return 0;   // ras, pas d'erreur
+}
+
+void Renderer::initSkyBox() {
+
+    vector<string> fileSkyBoxViolentDays = {
+    "tp/tp1/skybox/violentdays/violentdays_ft.tga",
+    "tp/tp1/skybox/violentdays/violentdays_bk.tga",
+    "tp/tp1/skybox/violentdays/violentdays_dn.tga",
+    "tp/tp1/skybox/violentdays/violentdays_up.tga",
+    "tp/tp1/skybox/violentdays/violentdays_rt.tga",
+    "tp/tp1/skybox/violentdays/violentdays_lf.tga"
+    };
+
+    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+
+    m_skybox.loadCubeMap(fileSkyBoxViolentDays);
+    m_skybox.loadProgram("tp/tp1/shaders/skybox/skybox.glsl");
+
+
+}
+
+void Renderer::renderSkybox() {
+    m_skybox.render(m_camera.view(), Perspective(45, window_width() / window_height(), 1.f,100.f));
 }
 
 void Renderer::createPrograms() {
@@ -289,7 +314,7 @@ void Renderer::updateModels() {
     //Le soleil : distance à midi de 100 pixels en Y, puis rotate autour du monde
     Transform Tsun = RotationZ(t/1000.f) * Translation(0,100,0);
     Point posSun = Tsun(Point(0,0,0));
-    printf("Position soleil : %f,%f,%f\n", posSun.x, posSun.y, posSun.z);
+    //printf("Position soleil : %f,%f,%f\n", posSun.x, posSun.y, posSun.z);
 
     m_lights[0].pos = vec3(posSun);
 
@@ -398,6 +423,9 @@ void Renderer::normalRender() {
     glViewport(0, 0, window_width(), window_height());
     glClearColor(0.2f, 0.2f, 0.2f, 1.f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    //Draw skybox
+    renderSkybox();
     
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, m_depth_buffer);

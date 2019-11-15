@@ -13,6 +13,7 @@
 
 #include "buffersClass.h"
 #include "infos.h"
+#include "SkyBox.h"
 
 #include <vector>
 #include <sstream>
@@ -28,6 +29,9 @@ public:
     int init();
 
     void createPrograms();
+
+    void initSkyBox();
+    void renderSkybox();
 
     GLuint compileShader(const char* filename, const GLenum shader_type);
     void createProgramAndLinkShaders(GLuint &program, GLuint v_shader, GLuint f_shader);
@@ -104,6 +108,8 @@ protected:
     GLuint m_depth_buffer;
     GLuint m_color_buffer;
     GLuint m_color_sampler;
+
+    SkyBox m_skybox;
 
     //Point lightPos[2];
     //Color lightColor[2];
