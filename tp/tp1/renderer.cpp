@@ -103,7 +103,7 @@ void Renderer::createProgramAndLinkShaders(GLuint &program, GLuint v_shader, GLu
 void Renderer::createObjects() {
 
     addAnimatedObj("tp/tp1/objects/Robot/run/Robot_0000", 23);
-    m_animatedModels.push_back(Translation(2,0,2));
+    m_animatedModels.push_back(Translation(10,1,30));
 
     addAnimatedObj("tp/tp1/objects/Dog/Dog_0000",39);
     m_animatedModels.push_back(Translation(6,1,-2) * Scale(0.5,0.5,0.5));
@@ -117,7 +117,7 @@ void Renderer::createObjects() {
     //Lights
     
     //Soleil
-    m_lights.push_back(Light(Point(50,50,60), 15, White()));
+    m_lights.push_back(Light(Point(0,0,0), 10, White()));
     //Position de la street lamp
     m_lights.push_back(Light(Point(15,20,32), 15, White()));
 }
@@ -278,22 +278,25 @@ void Renderer::updateModels() {
     // Transform Tdog = Translation(0,0,signDog * t/60.f) * Rdog;
     // m_animatedModels[DOG] = Tdog;
 
-    const int rSun = 1;
-    Transform Tr = RotationY(t/100.f);
+    //Déplacer le robot, ZQSD
 
-    //m_animatedModels[ROBOT] = Tr;
+    const float coefTurn = 2.f;
+    m_animatedModels[ROBOT] =   m_animatedModels[ROBOT] 
+                                * Translation(0, 0, key_state('z') ? 0.5 : 0) 
+                                * RotationY(key_state('d') ? -coefTurn : key_state('q') ? coefTurn: 0);
 
-    // const float angle = (t - (int) t) * 360.f;
-    // //const float angle = (int) t % 360;
 
-    // T = RotationX(angle);
-    // m_lights[0].pos = vec3(T(Point(10,0,-10))); 
+    //Le soleil : distance à midi de 100 pixels en Y, puis rotate autour du monde
+    Transform Tsun = RotationZ(t/1000.f) * Translation(0,100,0);
+    Point posSun = Tsun(Point(0,0,0));
+    printf("Position soleil : %f,%f,%f\n", posSun.x, posSun.y, posSun.z);
 
-    // T = Translation(sin(t/4000) * rSun, -cos(t/5000) * rSun, 0);
-    // m_lights[0].pos = vec3(T(Point(m_lights[0].pos)));
+    m_lights[0].pos = vec3(posSun);
 
-    // printf("h:%f %f %f\n", m_lights[0].pos.x, m_lights[0].pos.y, m_lights[0].pos.z);
-
+    float factorY = posSun.y/100.f;
+    m_lights[0].color = vec4(1,factorY, factorY,1);
+    const float intensityMaxSun = 10;
+    m_lights[0].intensity = std::max(0.f, factorY * intensityMaxSun);
 }
 
 // dessiner une nouvelle image

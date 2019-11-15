@@ -22,7 +22,7 @@ class Renderer : public App {
 
 public:
     // constructeur : donner les dimensions de l'image, et eventuellement la version d'openGL.
-    Renderer( ) : App(1024, 640) {}
+    Renderer( ) : App(1600, 900) {}
 
     // creation des objets de l'application
     int init();
@@ -93,8 +93,8 @@ protected:
     std::vector<Light> m_lights;
 
 
-    int m_framebuffer_height = 1024;
-    int m_framebuffer_width = 1024;
+    int m_framebuffer_height = 900;
+    int m_framebuffer_width = 1600;
 
     Transform orthoProjShadowMap;
 

@@ -50,7 +50,7 @@ float shadowCalculations(vec4 positionLightSpace, vec3 normal, vec3 lightDir) {
     float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
     //bias = 0.005;
 
-    //if (projCoords.z > 1.0) return 1.0;
+    if (projCoords.z > 1.0 || projCoords.z < 0.0 ) return 1.0;
     return currentDepth - bias > closestDepth ? 0.0 : 1.0;
 }
 
@@ -105,7 +105,7 @@ void main( )
     float shadow = shadowCalculations(pDepth,nn,l);
 
     //TODO ALL LIGHTS
-    vec3 color= shadow * materials[matIndex].diffuse.rgb * lights[0].intensity * fr * cos_theta;
+    vec3 color= shadow * materials[matIndex].diffuse.rgb * vec3(lights[0].color) * lights[0].intensity * fr * cos_theta;
 
 
     fragment_color = vec4(color,1);
