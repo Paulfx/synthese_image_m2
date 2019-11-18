@@ -66,6 +66,36 @@ float plane( const in vec3 o, const in vec3 d, const in vec3 anchor, const in ve
     return t;
 }
 
+Vector pvec= cross(ray.d, e2);
+float det= dot(e1, pvec);
+
+float inv_det= 1 / det;
+Vector tvec(p, ray.o);
+
+float u= dot(tvec, pvec) * inv_det;
+if(u < 0 || u > 1) return Hit();
+
+Vector qvec= cross(tvec, e1);
+float v= dot(ray.d, qvec) * inv_det;
+if(v < 0 || u + v > 1) return Hit();
+
+float t= dot(e2, qvec) * inv_det;
+if(t > htmax || t < 0) return Hit();
+
+return Hit(id, t, u, v); 
+
+float triangle(const in vec3 o, const in vec3 d, const in vec3 a, const in vec3 b, const in vec3 c) {
+
+    vec3 ab= b-a;
+    vec3 ac= c-a;
+
+    vec3 pvec= cross(d,ac);
+    float inv_det= 1/dot(ab,pvec);
+
+
+
+}
+
 
 bool object( const in vec3 o, const in vec3 d, out float t, out vec3 n, out vec3 c )
 {
