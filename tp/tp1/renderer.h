@@ -63,7 +63,7 @@ public:
 
     Transform Ortho(const float left, const float right, const float bottom, const float top, const float znear, const float zfar);
 
-    void shadowMapRender();
+    void shadowMapRender(const Transform& orthoProjShadowMap, const Transform &view);
 
     void normalRender();
 
@@ -73,6 +73,7 @@ public:
 
     void setUniform(GLuint program, const Transform& model);
 
+    Transform getViewFromSun(vec3 pos);
     Transform getViewFromLight(vec3 pos);
 
 protected:
@@ -97,25 +98,23 @@ protected:
     std::vector<Light> m_lights;
 
 
-    int m_framebuffer_height = 900;
     int m_framebuffer_width = 1600;
+    int m_framebuffer_height = 900;
+    
 
-    Transform orthoProjShadowMap;
+    //2 projections orthographiques différentes en fonction de la lumière
+    Transform orthoProjShadowMapSun;
+    Transform orthoProjShadowMapLamp;
 
     GLuint m_staticShadowMap_program;
     GLuint m_dynamicShadowMap_program;
     GLuint m_framebuffer;
-    GLuint m_depth_buffer;
+    GLuint m_depth_buffer1;
+    GLuint m_depth_buffer2;
     GLuint m_color_buffer;
     GLuint m_color_sampler;
 
     SkyBox m_skybox;
-
-    //Point lightPos[2];
-    //Color lightColor[2];
-
-    //Les modeles
-    //Transform lampModel, robotModel;
 };
 
 
