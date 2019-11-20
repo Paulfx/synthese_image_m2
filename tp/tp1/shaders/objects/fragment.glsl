@@ -17,14 +17,15 @@ struct Material {
 
 layout(std430, binding=0) readonly buffer lightsAndMaterials {
     Light lights[NUMBER_OF_LIGHTS];
-
     Material materials[];
 };
 
 out vec4 fragment_color;
 
-uniform sampler2D shadowMap;
-in vec4 pDepth;
+uniform sampler2D shadowMapSun;
+uniform sampler2D shadowMapLamp;
+in vec4 pDepth_Sun;
+in vec4 pDepth_Lamp;
 
 //Repère du monde
 in vec3 p;
@@ -33,14 +34,13 @@ flat in int matIndex;
 
 uniform vec3 camera;
 
-
 uniform float F0;       //indice de réfraction
 uniform float alpha;    //Rugosité
 
 const float PI= 3.14159265359;
 
 //https://learnopengl.com/Advanced-Lighting/Shadows/Shadow-Mapping
-float shadowCalculations(vec4 positionLightSpace, vec3 normal, vec3 lightDir) {
+float shadowCalculations(vec4 positionLightSpace, vec3 normal, vec3 lightDir, sampler2D shadowMap) {
     vec3 projCoords = positionLightSpace.xyz / positionLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
     float closestDepth = texture(shadowMap, projCoords.xy).r;
@@ -93,8 +93,13 @@ void main( )
 
         //Projection du point sur sa normale ?
         
-        //TODO ombre pour chaque lumière
-        float shadow = shadowCalculations(pDepth,nn,l);
+        //TODO ajouter un tableau pour stocker les sampler, les pDepth associés à chaque lumière...
+        //Pour l'instant si i==0, soleil, sinon lamp, c'est pas très générique tout ça...
+        float shadow;
+        if (i == 0)
+            shadow = shadowCalculations(pDepth_Sun,nn,l, shadowMapSun);
+        else
+            shadow = shadowCalculations(pDepth_Lamp,nn,l, shadowMapLamp);
 
         //TODO ALL LIGHTS
         color=      color + 

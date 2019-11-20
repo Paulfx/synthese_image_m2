@@ -16,12 +16,13 @@ uniform mat4 mNormal;
 uniform mat4 mvNormal;
 uniform mat4 mvpNormal;
 
-uniform mat4 depthMVP;
-out vec4 pDepth;
+uniform mat4 depthMVP_Sun;
+out vec4 pDepth_Sun;
+uniform mat4 depthMVP_Lamp;
+out vec4 pDepth_Lamp;
 
 void main( )
 {
-
     matIndex = materialIndex;
 
     //Repère du monde
@@ -30,5 +31,6 @@ void main( )
 
     gl_Position= mvpMatrix * vec4(position, 1);
 
-    pDepth = depthMVP * vec4(position, 1);
+    pDepth_Sun = depthMVP_Sun * vec4(position, 1);
+    pDepth_Lamp = depthMVP_Lamp * vec4(position, 1);
 }

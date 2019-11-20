@@ -1,7 +1,5 @@
 #include "buffersClass.h"
 
-Buffers::Buffers() : vao(0), vertex_buffer(0), vertex_count(0), init(false) {}
-
 //Only one mesh = one keyframe
 void Buffers::create( const Mesh& mesh ) {
     if(!mesh.vertex_buffer_size() || init) return;
@@ -33,7 +31,6 @@ void Buffers::create( const Mesh& mesh ) {
     setPointer(0);
 
     printf("End of static buffer creation\n");
-
 }
 
 //Plusieurs keyframes (animation)

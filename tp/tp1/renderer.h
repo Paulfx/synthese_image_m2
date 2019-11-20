@@ -13,7 +13,6 @@
 
 #include "buffersClass.h"
 #include "infos.h"
-#include "SkyBox.h"
 
 #include <vector>
 #include <sstream>
@@ -29,10 +28,6 @@ public:
     int init();
 
     void createPrograms();
-
-    void initSkyBox();
-    void renderSkybox();
-
     GLuint compileShader(const char* filename, const GLenum shader_type);
     void createProgramAndLinkShaders(GLuint &program, GLuint v_shader, GLuint f_shader);
     
@@ -94,14 +89,13 @@ protected:
     Orbiter m_camera;
 
     //Lumière
-
     std::vector<Light> m_lights;
 
 
+    //Paramètres pour la shadow map
     int m_framebuffer_width = 1600;
     int m_framebuffer_height = 900;
     
-
     //2 projections orthographiques différentes en fonction de la lumière
     Transform orthoProjShadowMapSun;
     Transform orthoProjShadowMapLamp;
@@ -113,8 +107,6 @@ protected:
     GLuint m_depth_buffer2;
     GLuint m_color_buffer;
     GLuint m_color_sampler;
-
-    SkyBox m_skybox;
 };
 
 

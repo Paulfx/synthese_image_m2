@@ -23,17 +23,9 @@ public:
     size_t vertexBufferSize, normalBufferSize;
 
     //On stocke les info des materials
-
-    //TODO struct uniform array
-    // int NB_MATERIALS;
-    // std::vector<Color> diffuse;
-    // std::vector<Color> specular;
-    // std::vector<Color> emission;
-    // std::vector<float> ns;
-
     std::vector<Material_glsl> materials;
 
-    Buffers();
+    Buffers() : vao(0), vertex_buffer(0), vertex_count(0), init(false) {};
     
     //Only one mesh = one keyframe
     void create(const Mesh& mesh);
@@ -41,10 +33,16 @@ public:
     //Plusieurs keyframes (animation)
     void create(const std::vector<Mesh>& meshes);
 
+    //Créer le buffer materials_buffer pour stocker les indices des matériaux
+    //Et le vecteur materials contenant les informations des matériaux
+    //Alignés pour être stockées dans un shader storage buffer.
     void createMaterials(const Mesh& mesh);
 
+    //Décale les vertex attrib pointer pour faire pointer sur la frame nbFrame
+    //Et nbFrame+1 (si l'objet est animé)
     void setPointer(size_t nbFrame);
     
+    //Destruction des buffers
     void release();
 };
 
