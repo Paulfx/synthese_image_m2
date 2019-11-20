@@ -1,7 +1,6 @@
 #ifndef INFOS_H
 #define INFOS_H
 
-//#include "vec.h"
 #include "mesh.h" //Material
 
 namespace glsl 
@@ -59,8 +58,6 @@ enum ObjectType {
 enum ObjectIndex {
 	ROBOT=0,
 	DOG=1,
-
-	ROAD=0
 };
 
 typedef struct Light {

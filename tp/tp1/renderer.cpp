@@ -204,9 +204,9 @@ void Renderer::putMaterialsInSSBO(const Buffers& obj) {
 
 // destruction des objets de l'application
 int Renderer::quit() {
-    for (int i=0; i<m_animatedObj.size(); ++i)
+    for (unsigned i=0; i<m_animatedObj.size(); ++i)
         m_animatedObj[i].release();
-    for (int i=0; i<m_staticObj.size(); ++i)
+    for (unsigned i=0; i<m_staticObj.size(); ++i)
         m_staticObj[i].release();
     
     glDeleteBuffers(1, &m_ssbo);
@@ -279,8 +279,8 @@ void Renderer::updateModels() {
     float z = cos(t / 1000) * 10;
     
 
-    static int signDog = 1;
-    static Transform Rdog = RotationY(0);
+    //static int signDog = 1;
+    //static Transform Rdog = RotationY(0);
 
     //todo move the dog
 
@@ -394,7 +394,7 @@ void Renderer::shadowMapRender(const Transform& orthoProjShadowMap, const Transf
 
     //Animated objects
     glUseProgram(m_dynamicShadowMap_program);
-    for (int i=0; i<m_animatedObj.size(); ++i) {
+    for (unsigned i=0; i<m_animatedObj.size(); ++i) {
 
         depthMVP = vp * m_animatedModels[i];
 
@@ -418,7 +418,7 @@ void Renderer::shadowMapRender(const Transform& orthoProjShadowMap, const Transf
 
     //Static objects
     glUseProgram(m_staticShadowMap_program);
-    for (int i=0; i<m_staticObj.size(); ++i) {
+    for (unsigned i=0; i<m_staticObj.size(); ++i) {
 
         depthMVP = vp * m_staticModels[i];
 
@@ -463,7 +463,7 @@ void Renderer::renderAnimatedObj() {
     glUniform1i(glGetUniformLocation(m_programDynamic, "shadowMapLamp2"), 2);
     glUniform1i(glGetUniformLocation(m_programDynamic, "shadowMapLamp3"), 3);
 
-    for (int i=0; i<m_animatedObj.size(); ++i) {
+    for (unsigned i=0; i<m_animatedObj.size(); ++i) {
 
         //ssbo materials
         putMaterialsInSSBO(m_animatedObj[i]);
@@ -503,7 +503,7 @@ void Renderer::renderStaticObj() {
     glUniform1i(glGetUniformLocation(m_programStatic, "shadowMapLamp2"), 2);
     glUniform1i(glGetUniformLocation(m_programStatic, "shadowMapLamp3"), 3);
 
-    for (int i=0; i<m_staticObj.size(); ++i) {
+    for (unsigned i=0; i<m_staticObj.size(); ++i) {
 
         //ssbo materials
         putMaterialsInSSBO(m_staticObj[i]);

@@ -75,8 +75,8 @@ public:
 protected:
     
     GLuint m_ssbo;
-    const int numberOfLights = 4;
-    const int max_materials = 100;
+    const unsigned numberOfLights = 4;
+    const unsigned max_materials = 100;
 
     std::vector<Buffers> m_animatedObj;
     std::vector<Transform> m_animatedModels;

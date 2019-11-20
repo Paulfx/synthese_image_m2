@@ -17,15 +17,15 @@ public:
     GLuint vao;
     GLuint vertex_buffer;
     GLuint materials_buffer;
-    int vertex_count;
-    int keyframe_count;
+    unsigned vertex_count;
+    unsigned keyframe_count;
 
     size_t vertexBufferSize, normalBufferSize;
 
     //On stocke les info des materials
     std::vector<Material_glsl> materials;
 
-    Buffers() : vao(0), vertex_buffer(0), vertex_count(0), init(false) {};
+    Buffers() : init(false), vao(0), vertex_buffer(0), vertex_count(0) {};
     
     //Only one mesh = one keyframe
     void create(const Mesh& mesh);

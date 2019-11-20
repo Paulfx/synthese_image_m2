@@ -315,7 +315,6 @@ int main( const int argc, const char **argv )
             // generer le rayon pour le pixel (x, y)
             float x= px + u01(rng);
             float y= py + u01(rng);
-            
 
             Point o= viewInv(Point(0,0,0)); // origine dans l'image
             Point e= screenToWorld(Point(x,y,1)); // extremite dans l'image
@@ -336,6 +335,7 @@ int main( const int argc, const char **argv )
                 //couleur réfléchie par p dans la direction o
                 Color brdf= 1.f / float(M_PI) * material.diffuse;
 
+                //Nombre de points pris sur la source
                 const int N = 256;
                 Point sample;
                 //Pour toutes les sources

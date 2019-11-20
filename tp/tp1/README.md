@@ -20,4 +20,8 @@ On différencie les objets statiques (sans animation = 1 seul fichier obj), des 
 
 Si l'objet est animé, on ajoute deux vertex attrib pointer (1 pour les positions et 1 pour les normales) pour pointer sur la frame suivante. La fonction *setPointer* permet de décaler les layouts en fonction du numéro de la frame. Pour ne pas sortir du buffer pour la dernière keyframe, la première frame est dupliquée à la fin du buffer.
 
+### Classe renderer dérivée de App
+
+C'est la classe qui contient toute la scène.
+
  
