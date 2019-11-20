@@ -159,14 +159,10 @@ void Buffers::setPointer(size_t nbFrame) {
         glEnableVertexAttribArray(vertexAttribNb++);
     }
 
-
     //Pas de changement pour les matérials
     glBindBuffer(GL_ARRAY_BUFFER, materials_buffer);
     glVertexAttribIPointer(vertexAttribNb, 1, GL_UNSIGNED_BYTE, 0, 0);
     glEnableVertexAttribArray(vertexAttribNb);
-
-
-
 }
 
 void Buffers::release( )
