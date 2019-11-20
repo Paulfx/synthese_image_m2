@@ -24,7 +24,7 @@ public:
     // constructeur : donner les dimensions de l'image, et eventuellement la version d'openGL.
     Renderer( ) : App(1400, 900) {}
 
-    // creation des objets de l'application
+// creation des objets de l'application
     int init();
 
     void createPrograms();
@@ -32,75 +32,62 @@ public:
     void createProgramAndLinkShaders(GLuint &program, GLuint v_shader, GLuint f_shader);
     
     void createObjects();
+    void addAnimatedObj(const std::string& beginFilePath, int nb);
+    int addStaticObj(const std::string& filePath);
 
     void createDepthFrameBuffer();
     void createDepthBuffer(GLuint &buf);
 
     void createSSBO();
-
     void putLightsInSSBO();
-
     void putMaterialsInSSBO(const Buffers& obj);
-    
-    // destruction des objets de l'application
-    int quit();
 
-    void addAnimatedObj(const std::string& beginFilePath, int nb);
-
-    int addStaticObj(const std::string& filePath);
-
+//update de la scène
     int update(const float time, const float delta);
-    
-
     void updateModels();
-
-    // dessiner une nouvelle image
+    
+// dessiner une nouvelle image
     int render();
 
     Transform Ortho(const float left, const float right, const float bottom, const float top, const float znear, const float zfar);
-
+    Transform getViewFromSun(vec3 pos);
+    Transform getViewFromLight(vec3 pos);
     void shadowMapRender(const Transform& orthoProjShadowMap, const Transform &view);
-
     void normalRender();
-
     void renderAnimatedObj();
-
     void renderStaticObj();
 
     void setUniform(GLuint program, const Transform& model);
 
-    Transform getViewFromSun(vec3 pos);
-    Transform getViewFromLight(vec3 pos);
+// destruction des objets de l'application
+    int quit();
 
 protected:
     
-    GLuint m_ssbo;
     const unsigned numberOfLights = 4;
     const unsigned max_materials = 100;
-
+//Camera
+    Orbiter m_camera;
+//Lumière
+    std::vector<Light> m_lights;
+//Objets animés
     std::vector<Buffers> m_animatedObj;
     std::vector<Transform> m_animatedModels;
-
+//Onjets statiques
     std::vector<Buffers> m_staticObj;
     std::vector<Transform> m_staticModels;
 
-
+//Storage buffer light + material
+    GLuint m_ssbo;
+//Shaders d'affichage d'objets
     GLuint m_programDynamic;
     GLuint m_programStatic;
-    Orbiter m_camera;
-
-    //Lumière
-    std::vector<Light> m_lights;
-
-
-    //Paramètres pour la shadow map
+//Shadow mapping
     int m_framebuffer_width = 1400;
     int m_framebuffer_height = 900;
-    
     //2 projections orthographiques différentes en fonction de la lumière
     Transform orthoProjShadowMapSun;
     Transform orthoProjShadowMapLamp;
-
     GLuint m_staticShadowMap_program;
     GLuint m_dynamicShadowMap_program;
     GLuint m_framebuffer;

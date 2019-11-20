@@ -121,6 +121,33 @@ void Renderer::createObjects() {
     m_lights.push_back(Light(Point(55,30,55), 10, Color(1,0.5,0.5)));
 }
 
+void Renderer::addAnimatedObj(const std::string& beginFilePath, int nb) {
+
+    std::vector<Mesh> meshes;
+    std::string meshFile, numStr;
+    for (int i = 1; i <= nb; ++i)
+    {
+        if (i < 10) numStr = "0";
+        else numStr = "";
+        numStr += std::to_string(i);
+        meshFile = beginFilePath + numStr + ".obj";
+        meshes.push_back(read_mesh(meshFile.c_str()));
+    }
+
+    //Create all keyframes
+    Buffers b;
+    b.create(meshes);
+    m_animatedObj.push_back(b);
+}
+
+int Renderer::addStaticObj(const std::string& filePath) {
+    int index = m_staticObj.size();
+    Buffers b;
+    b.create(read_mesh(filePath.c_str()));
+    m_staticObj.push_back(b);
+    return index;
+}
+
 void Renderer::createDepthFrameBuffer() {
 
     // etape 1 : creer une texture couleur...
@@ -200,59 +227,6 @@ void Renderer::putMaterialsInSSBO(const Buffers& obj) {
                     numberOfLights * sizeof(Light), 
                     obj.materials.size() * sizeof(Material_glsl), 
                     obj.materials.data());
-}
-
-// destruction des objets de l'application
-int Renderer::quit() {
-    for (unsigned i=0; i<m_animatedObj.size(); ++i)
-        m_animatedObj[i].release();
-    for (unsigned i=0; i<m_staticObj.size(); ++i)
-        m_staticObj[i].release();
-    
-    glDeleteBuffers(1, &m_ssbo);
-    glDeleteBuffers(1, &m_framebuffer);
-
-    glDeleteTextures(1, &m_color_buffer);
-    glDeleteTextures(1, &m_depth_buffer1);
-    glDeleteTextures(1, &m_depth_buffer2);
-    glDeleteTextures(1, &m_depth_buffer3);
-    glDeleteTextures(1, &m_depth_buffer4);
-    glDeleteSamplers(1, &m_color_sampler);
-
-    //TODO glDeleteShader une seule fois pour le fragment, qui est lié aux deux à chaque fois
-    release_program(m_staticShadowMap_program);
-    release_program(m_dynamicShadowMap_program);
-    release_program(m_programDynamic);
-    release_program(m_programStatic);
-
-    return 0;
-}
-
-void Renderer::addAnimatedObj(const std::string& beginFilePath, int nb) {
-
-    std::vector<Mesh> meshes;
-    std::string meshFile, numStr;
-    for (int i = 1; i <= nb; ++i)
-    {
-        if (i < 10) numStr = "0";
-        else numStr = "";
-        numStr += std::to_string(i);
-        meshFile = beginFilePath + numStr + ".obj";
-        meshes.push_back(read_mesh(meshFile.c_str()));
-    }
-
-    //Create all keyframes
-    Buffers b;
-    b.create(meshes);
-    m_animatedObj.push_back(b);
-}
-
-int Renderer::addStaticObj(const std::string& filePath) {
-    int index = m_staticObj.size();
-    Buffers b;
-    b.create(read_mesh(filePath.c_str()));
-    m_staticObj.push_back(b);
-    return index;
 }
 
 int Renderer::update(const float time, const float delta) {
@@ -565,4 +539,30 @@ void Renderer::setUniform(GLuint program, const Transform& model) {
     location = glGetUniformLocation(program, "camera");
     Point p = m_camera.position(); //Repère du monde
     glUniform3fv(location, 1, &p.x);
+}
+
+// destruction des objets de l'application
+int Renderer::quit() {
+    for (unsigned i=0; i<m_animatedObj.size(); ++i)
+        m_animatedObj[i].release();
+    for (unsigned i=0; i<m_staticObj.size(); ++i)
+        m_staticObj[i].release();
+    
+    glDeleteBuffers(1, &m_ssbo);
+    glDeleteBuffers(1, &m_framebuffer);
+
+    glDeleteTextures(1, &m_color_buffer);
+    glDeleteTextures(1, &m_depth_buffer1);
+    glDeleteTextures(1, &m_depth_buffer2);
+    glDeleteTextures(1, &m_depth_buffer3);
+    glDeleteTextures(1, &m_depth_buffer4);
+    glDeleteSamplers(1, &m_color_sampler);
+
+    //TODO glDeleteShader une seule fois pour le fragment, qui est lié aux deux à chaque fois
+    release_program(m_staticShadowMap_program);
+    release_program(m_dynamicShadowMap_program);
+    release_program(m_programDynamic);
+    release_program(m_programStatic);
+
+    return 0;
 }
