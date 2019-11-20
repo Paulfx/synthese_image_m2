@@ -22,7 +22,7 @@ class Renderer : public App {
 
 public:
     // constructeur : donner les dimensions de l'image, et eventuellement la version d'openGL.
-    Renderer( ) : App(1600, 900) {}
+    Renderer( ) : App(1400, 900) {}
 
     // creation des objets de l'application
     int init();
@@ -34,6 +34,7 @@ public:
     void createObjects();
 
     void createDepthFrameBuffer();
+    void createDepthBuffer(GLuint &buf);
 
     void createSSBO();
 
@@ -74,7 +75,7 @@ public:
 protected:
     
     GLuint m_ssbo;
-    const int numberOfLights = 2;
+    const int numberOfLights = 4;
     const int max_materials = 100;
 
     std::vector<Buffers> m_animatedObj;
@@ -93,7 +94,7 @@ protected:
 
 
     //Paramètres pour la shadow map
-    int m_framebuffer_width = 1600;
+    int m_framebuffer_width = 1400;
     int m_framebuffer_height = 900;
     
     //2 projections orthographiques différentes en fonction de la lumière
@@ -103,8 +104,10 @@ protected:
     GLuint m_staticShadowMap_program;
     GLuint m_dynamicShadowMap_program;
     GLuint m_framebuffer;
-    GLuint m_depth_buffer1;
-    GLuint m_depth_buffer2;
+    GLuint m_depth_buffer1; //Soleil
+    GLuint m_depth_buffer2; //Lamp1
+    GLuint m_depth_buffer3; //Lamp2
+    GLuint m_depth_buffer4; //Lamp3
     GLuint m_color_buffer;
     GLuint m_color_sampler;
 };

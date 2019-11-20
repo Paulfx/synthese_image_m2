@@ -1,6 +1,6 @@
 #version 430
 
-#define NUMBER_OF_LIGHTS 2
+#define NUMBER_OF_LIGHTS 4
 
 struct Light {
     vec3 position;
@@ -22,10 +22,16 @@ layout(std430, binding=0) readonly buffer lightsAndMaterials {
 
 out vec4 fragment_color;
 
+//TODO factoriser tout ça!!
 uniform sampler2D shadowMapSun;
-uniform sampler2D shadowMapLamp;
+uniform sampler2D shadowMapLamp1;
+uniform sampler2D shadowMapLamp2;
+uniform sampler2D shadowMapLamp3;
+
 in vec4 pDepth_Sun;
-in vec4 pDepth_Lamp;
+in vec4 pDepth_Lamp1;
+in vec4 pDepth_Lamp2;
+in vec4 pDepth_Lamp3;
 
 //Repère du monde
 in vec3 p;
@@ -90,18 +96,20 @@ void main( )
         float F= F0 + (1 - F0) * pow(1 - dot(o, h), 5);
         // brdf
         float fr= (F * D * G2) / (4 * cos_theta_o * cos_theta);
-
-        //Projection du point sur sa normale ?
         
         //TODO ajouter un tableau pour stocker les sampler, les pDepth associés à chaque lumière...
-        //Pour l'instant si i==0, soleil, sinon lamp, c'est pas très générique tout ça...
+        //Pour l'instant si i==0, soleil, sinon lamp i, c'est pas très générique tout ça...
+        //Et c'est triste d'avoir un if dans un shader
         float shadow;
         if (i == 0)
             shadow = shadowCalculations(pDepth_Sun,nn,l, shadowMapSun);
+        else if (i==1)
+            shadow = shadowCalculations(pDepth_Lamp1,nn,l, shadowMapLamp1);
+        else if (i==2)
+            shadow = shadowCalculations(pDepth_Lamp2,nn,l, shadowMapLamp2);
         else
-            shadow = shadowCalculations(pDepth_Lamp,nn,l, shadowMapLamp);
+            shadow = shadowCalculations(pDepth_Lamp3,nn,l, shadowMapLamp3);
 
-        //TODO ALL LIGHTS
         color=      color + 
                     shadow                          * 
                     materials[matIndex].diffuse.rgb * 

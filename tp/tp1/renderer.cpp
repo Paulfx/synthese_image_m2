@@ -15,7 +15,7 @@ int Renderer::init() {
 
     //Paramètres de la projection orthographique shadow map
     orthoProjShadowMapSun = Ortho(-150,150,-150,150,0.1f,200.f);
-    orthoProjShadowMapLamp = Ortho(-25,25,-25,25,0.1f,50.f);
+    orthoProjShadowMapLamp = Ortho(-20,20,-30,10,0.1f,50.f);
 
     //Load orbiter
     m_camera.read_orbiter("tp/tp1/objects/orbiter.txt");
@@ -109,14 +109,16 @@ void Renderer::createObjects() {
     m_staticModels.push_back(Translation(0,-1.5,0) * Scale(10,10,10));
 
     addStaticObj("tp/tp1/objects/Nature_pack/OBJ/Wheat.obj");
-    m_staticModels.push_back(Translation(15,20,32));
+    m_staticModels.push_back(Translation(-22,25,43));
 
 //Lights    
     //Soleil
-    m_lights.push_back(Light(Point(0,0,0), 15, White()));
+    m_lights.push_back(Light(Point(0,0,0), 12, White()));
     
-    //Position de la street lamp
-    m_lights.push_back(Light(Point(15,20,32), 5, Red()));
+    //Position des street lamp
+    m_lights.push_back(Light(Point(15,25,32), 10, Color(1,0.8,0.8)));
+    m_lights.push_back(Light(Point(-22,25,30), 10, Color(1,0.8,0.8)));
+    m_lights.push_back(Light(Point(55,30,55), 10, Color(1,0.5,0.5)));
 }
 
 void Renderer::createDepthFrameBuffer() {
@@ -140,31 +142,10 @@ void Renderer::createDepthFrameBuffer() {
     glSamplerParameteri(m_color_sampler, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
     glSamplerParameteri(m_color_sampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 
-    glGenTextures(1, &m_depth_buffer1);
-    glBindTexture(GL_TEXTURE_2D, m_depth_buffer1);
-    
-    glTexImage2D(GL_TEXTURE_2D, 0,
-        GL_DEPTH_COMPONENT, m_framebuffer_width, m_framebuffer_height, 0,
-        GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
-    
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER); 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-
-    //Pour la lampe, un deuxième depth_buffer... TODO a factoriser
-    glGenTextures(1, &m_depth_buffer2);
-    glBindTexture(GL_TEXTURE_2D, m_depth_buffer2);
-    
-    glTexImage2D(GL_TEXTURE_2D, 0,
-        GL_DEPTH_COMPONENT, m_framebuffer_width, m_framebuffer_height, 0,
-        GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
-    
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER); 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-
+    createDepthBuffer(m_depth_buffer1);
+    createDepthBuffer(m_depth_buffer2);
+    createDepthBuffer(m_depth_buffer3);
+    createDepthBuffer(m_depth_buffer4);
 
     // etape 2 : creer et configurer un framebuffer object
     glGenFramebuffers(1, &m_framebuffer);
@@ -178,6 +159,21 @@ void Renderer::createDepthFrameBuffer() {
 
     // nettoyage
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+}
+
+void Renderer::createDepthBuffer(GLuint &buf) {
+    glGenTextures(1, &buf);
+    glBindTexture(GL_TEXTURE_2D, buf);
+    
+    glTexImage2D(GL_TEXTURE_2D, 0,
+        GL_DEPTH_COMPONENT, m_framebuffer_width, m_framebuffer_height, 0,
+        GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+    
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER); 
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
 }
 
 void Renderer::createSSBO() {
@@ -219,6 +215,8 @@ int Renderer::quit() {
     glDeleteTextures(1, &m_color_buffer);
     glDeleteTextures(1, &m_depth_buffer1);
     glDeleteTextures(1, &m_depth_buffer2);
+    glDeleteTextures(1, &m_depth_buffer3);
+    glDeleteTextures(1, &m_depth_buffer4);
     glDeleteSamplers(1, &m_color_sampler);
 
     //TODO glDeleteShader une seule fois pour le fragment, qui est lié aux deux à chaque fois
@@ -301,14 +299,21 @@ void Renderer::updateModels() {
 
 
     //Le soleil : distance à midi de 100 pixels en Y, puis rotate autour du monde
-    Transform Tsun = RotationZ(t/100.f) * Translation(0,100,0);
+    Transform Tsun = RotationZ(t/50.f) * Translation(0,100,0);
     Point posSun = Tsun(Point(0,0,0));
     m_lights[0].pos = vec3(posSun);
 
     float factorY = posSun.y/100.f;
     m_lights[0].color = vec4(1,factorY, factorY,1);
-    const float intensityMaxSun = 10;
+    const float intensityMaxSun = 12;
     m_lights[0].intensity = std::max(0.f, factorY * intensityMaxSun);
+
+    const float intensityMaxLamp = 7;
+    //Les street lamp s'allument quand le soleil décroit
+    m_lights[1].intensity = intensityMaxLamp * (1 - m_lights[0].intensity / intensityMaxSun);
+    m_lights[2].intensity = intensityMaxLamp * (1 - m_lights[0].intensity / intensityMaxSun);
+    m_lights[3].intensity = intensityMaxLamp * (1 - m_lights[0].intensity / intensityMaxSun);
+
 }
 
 // dessiner une nouvelle image
@@ -323,11 +328,19 @@ int Renderer::render() {
                                                 /* mipmap level */ 0);
     shadowMapRender(orthoProjShadowMapSun, getViewFromSun(m_lights[0].pos));
 
-    //La street lamp
+    //Les street lamp TODO factoriser
     glFramebufferTexture(GL_DRAW_FRAMEBUFFER,   /* attachment */ GL_DEPTH_ATTACHMENT, 
                                                 /* texture */ m_depth_buffer2, 
                                                 /* mipmap level */ 0);
     shadowMapRender(orthoProjShadowMapLamp, getViewFromLight(m_lights[1].pos));
+    glFramebufferTexture(GL_DRAW_FRAMEBUFFER,   /* attachment */ GL_DEPTH_ATTACHMENT, 
+                                                /* texture */ m_depth_buffer3, 
+                                                /* mipmap level */ 0);
+    shadowMapRender(orthoProjShadowMapLamp, getViewFromLight(m_lights[2].pos));
+    glFramebufferTexture(GL_DRAW_FRAMEBUFFER,   /* attachment */ GL_DEPTH_ATTACHMENT, 
+                                                /* texture */ m_depth_buffer4, 
+                                                /* mipmap level */ 0);
+    shadowMapRender(orthoProjShadowMapLamp, getViewFromLight(m_lights[3].pos));
     
     if (key_state(' ')) {
         //Afficher le depth buffer
@@ -367,7 +380,7 @@ Transform Renderer::getViewFromSun(vec3 pos) {
 }
 
 Transform Renderer::getViewFromLight(vec3 pos) {
-    return Lookat(pos, Point(pos.x,0,pos.y+1), Vector(0,1,0));
+    return Lookat(pos, Point(pos.x,0,pos.y+0.1), Vector(0,1,0));
 }
 
 void Renderer::shadowMapRender(const Transform& orthoProjShadowMap, const Transform &view) {    
@@ -428,9 +441,13 @@ void Renderer::normalRender() {
     //Le soleil:
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, m_depth_buffer1);
-    //La street lamp:
+    //Les street lamp:
     glActiveTexture(GL_TEXTURE0 + 1);
     glBindTexture(GL_TEXTURE_2D, m_depth_buffer2);
+    glActiveTexture(GL_TEXTURE0 + 2);
+    glBindTexture(GL_TEXTURE_2D, m_depth_buffer3);
+    glActiveTexture(GL_TEXTURE0 + 3);
+    glBindTexture(GL_TEXTURE_2D, m_depth_buffer4);
 
     putLightsInSSBO();
     renderAnimatedObj();
@@ -442,7 +459,9 @@ void Renderer::renderAnimatedObj() {
     glUseProgram(m_programDynamic);
 
     glUniform1i(glGetUniformLocation(m_programDynamic, "shadowMapSun"), 0);
-    glUniform1i(glGetUniformLocation(m_programDynamic, "shadowMapLamp"), 1);
+    glUniform1i(glGetUniformLocation(m_programDynamic, "shadowMapLamp1"), 1);
+    glUniform1i(glGetUniformLocation(m_programDynamic, "shadowMapLamp2"), 2);
+    glUniform1i(glGetUniformLocation(m_programDynamic, "shadowMapLamp3"), 3);
 
     for (int i=0; i<m_animatedObj.size(); ++i) {
 
@@ -480,7 +499,9 @@ void Renderer::renderStaticObj() {
     
     glUseProgram(m_programStatic);
     glUniform1i(glGetUniformLocation(m_programStatic, "shadowMapSun"), 0);
-    glUniform1i(glGetUniformLocation(m_programStatic, "shadowMapLamp"), 1);
+    glUniform1i(glGetUniformLocation(m_programStatic, "shadowMapLamp1"), 1);
+    glUniform1i(glGetUniformLocation(m_programStatic, "shadowMapLamp2"), 2);
+    glUniform1i(glGetUniformLocation(m_programStatic, "shadowMapLamp3"), 3);
 
     for (int i=0; i<m_staticObj.size(); ++i) {
 
@@ -511,15 +532,22 @@ void Renderer::setUniform(GLuint program, const Transform& model) {
 
     //Shadow map
     Transform mvpDepthSun = orthoProjShadowMapSun*getViewFromSun(m_lights[0].pos)*model;
-    Transform mvpDepthLamp = orthoProjShadowMapLamp*getViewFromLight(m_lights[1].pos)*model;
+    Transform mvpDepthLamp1 = orthoProjShadowMapLamp*getViewFromLight(m_lights[1].pos)*model;
+    Transform mvpDepthLamp2 = orthoProjShadowMapLamp*getViewFromLight(m_lights[2].pos)*model;
+    Transform mvpDepthLamp3 = orthoProjShadowMapLamp*getViewFromLight(m_lights[3].pos)*model;
 
     int location;
 
     glUseProgram(program);
+    //TODO factoriser lumières
     location = glGetUniformLocation(program, "depthMVP_Sun");
     glUniformMatrix4fv(location, 1, GL_TRUE, mvpDepthSun.buffer());
-    location = glGetUniformLocation(program, "depthMVP_Lamp");
-    glUniformMatrix4fv(location, 1, GL_TRUE, mvpDepthLamp.buffer());
+    location = glGetUniformLocation(program, "depthMVP_Lamp1");
+    glUniformMatrix4fv(location, 1, GL_TRUE, mvpDepthLamp1.buffer());
+    location = glGetUniformLocation(program, "depthMVP_Lamp2");
+    glUniformMatrix4fv(location, 1, GL_TRUE, mvpDepthLamp2.buffer());
+    location = glGetUniformLocation(program, "depthMVP_Lamp3");
+    glUniformMatrix4fv(location, 1, GL_TRUE, mvpDepthLamp3.buffer());
 
     location = glGetUniformLocation(program, "mvpMatrix");
     glUniformMatrix4fv(location, 1, GL_TRUE, mvp.buffer());

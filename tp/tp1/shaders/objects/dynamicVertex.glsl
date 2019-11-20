@@ -18,8 +18,12 @@ uniform mat4 mvpNormal;
 uniform mat4 depthMVP_Sun;
 out vec4 pDepth_Sun;
 
-uniform mat4 depthMVP_Lamp;
-out vec4 pDepth_Lamp;
+uniform mat4 depthMVP_Lamp1;
+out vec4 pDepth_Lamp1;
+uniform mat4 depthMVP_Lamp2;
+out vec4 pDepth_Lamp2;
+uniform mat4 depthMVP_Lamp3;
+out vec4 pDepth_Lamp3;
 
 uniform float t; //Entre 0 et 1
 
@@ -41,5 +45,7 @@ void main( )
    	gl_Position= mvpMatrix * vec4(position, 1);
 
     pDepth_Sun = depthMVP_Sun * vec4(position, 1);
-    pDepth_Lamp = depthMVP_Lamp * vec4(position, 1);
+    pDepth_Lamp1 = depthMVP_Lamp1 * vec4(position, 1);
+    pDepth_Lamp2 = depthMVP_Lamp2 * vec4(position, 1);
+    pDepth_Lamp3 = depthMVP_Lamp3 * vec4(position, 1);
 }
