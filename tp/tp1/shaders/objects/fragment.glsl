@@ -68,7 +68,7 @@ sampler2D getSampler(int i) {
     }
 }
 
-vec3 computeColorFromLight(vec3 o, vec3 nn, float cos_theta_o, Light light, vec4 pDepth, sampler2D shadowMap) {
+vec3 computeColorFromLight(vec3 o, vec3 nn, float cos_theta_o, Light light) {
 
     vec3 l= normalize(light.position - p);
     vec3 h= normalize(o + l);
@@ -94,12 +94,10 @@ vec3 computeColorFromLight(vec3 o, vec3 nn, float cos_theta_o, Light light, vec4
     // brdf
     float fr= (F * D * G2) / (4 * cos_theta_o * cos_theta);
     
-    float shadow = shadowCalculations(pDepth,nn,l, shadowMap);
 
-    return  shadow                          * 
-            materials[matIndex].diffuse.rgb * 
-            vec3(light.color)  * 
-            light.intensity    * 
+    return  materials[matIndex].diffuse.rgb * 
+            vec3(light.color)               * 
+            light.intensity                 * 
             fr                              * 
             cos_theta;
 }
@@ -119,13 +117,16 @@ void main( )
                                             pDepth_Lamp3);
 
     vec3 color = vec3(0,0,0);
+
+    vec3 tempColor;
+    float shadow;
     //pour toutes les lumières
     for (int i=0; i<NUMBER_OF_LIGHTS; ++i) {
 
-        if (i != 0)
-            color += computeColorFromLight(o, nn, cos_theta_o, lights[i], pDepths[i], getSampler(i));
-        else
-            color += computeColorFromLight(o, nn, cos_theta_o, lights[i], pDepths[i], getSampler(i));
+        tempColor = computeColorFromLight(o, nn, cos_theta_o, lights[i]);
+        shadow = shadowCalculations(pDepths[i], nn, l, getSampler(i));
+
+        color += 
     }
 
     fragment_color = vec4(color,1);
