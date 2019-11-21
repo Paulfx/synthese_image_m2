@@ -83,8 +83,8 @@ protected:
     GLuint m_programDynamic;
     GLuint m_programStatic;
 //Shadow mapping
-    int m_framebuffer_width = 1400;
-    int m_framebuffer_height = 900;
+    int m_framebuffer_width;
+    int m_framebuffer_height;
     //2 projections orthographiques différentes en fonction de la lumière
     Transform orthoProjShadowMapSun;
     Transform orthoProjShadowMapLamp;

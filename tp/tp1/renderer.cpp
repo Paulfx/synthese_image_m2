@@ -2,6 +2,10 @@
 
 // creation des objets de l'application
 int Renderer::init() {
+    SDL_SetWindowFullscreen(m_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+    m_framebuffer_width = window_width();
+    m_framebuffer_height = window_height();
+
     createPrograms();
     createObjects();
     createSSBO();

@@ -54,8 +54,54 @@ float shadowCalculations(vec4 positionLightSpace, vec3 normal, vec3 lightDir, sa
     
     float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
 
-    if (projCoords.z > 1.0 || projCoords.z < 0.0 ) return 0.0;
+    if (projCoords.z > 1.0 || projCoords.z < 0.0 ) return 1.0;
     return currentDepth - bias > closestDepth ? 0.0 : 1.0;
+}
+
+
+sampler2D getSampler(int i) {
+    switch(i) {
+        case 0: return shadowMapSun;
+        case 1: return shadowMapLamp1;
+        case 2: return shadowMapLamp2;
+        case 3: return shadowMapLamp3;
+    }
+}
+
+vec3 computeColorFromLight(vec3 o, vec3 nn, float cos_theta_o, Light light, vec4 pDepth, sampler2D shadowMap) {
+
+    vec3 l= normalize(light.position - p);
+    vec3 h= normalize(o + l);
+    // cos
+    float cos_theta= max(0, dot(nn, l));
+    float cos_theta_h= max(0, dot(nn, h));
+    
+    // meme hemisphere
+    if(cos_theta <= 0 || cos_theta_h <= 0 || cos_theta_o <= 0) {
+        return vec3(0,0,0);
+    }
+    // D
+    float D= alpha / (1 + cos_theta_h*cos_theta_h * (alpha*alpha -1));
+    D= D*D / PI;
+    // G2
+    float tan2_theta_o= 1 / (cos_theta_o*cos_theta_o) - 1;
+    float lambda_o= 1 + alpha*alpha * tan2_theta_o;
+    float tan2_theta= 1 / (cos_theta*cos_theta) - 1;
+    float lambda= 1 + alpha*alpha * tan2_theta;
+    float G2= 2 / (sqrt(lambda_o) + sqrt(lambda));
+    // F
+    float F= F0 + (1 - F0) * pow(1 - dot(o, h), 5);
+    // brdf
+    float fr= (F * D * G2) / (4 * cos_theta_o * cos_theta);
+    
+    float shadow = shadowCalculations(pDepth,nn,l, shadowMap);
+
+    return  shadow                          * 
+            materials[matIndex].diffuse.rgb * 
+            vec3(light.color)  * 
+            light.intensity    * 
+            fr                              * 
+            cos_theta;
 }
 
 void main( )
@@ -68,55 +114,61 @@ void main( )
 
     vec3 color = vec3(0,0,0);
 
+    vec4 pDepths[NUMBER_OF_LIGHTS] = vec4[](pDepth_Sun, 
+                                            pDepth_Lamp1,
+                                            pDepth_Lamp2,
+                                            pDepth_Lamp3);
+
     //pour toutes les lumières
     for (int i=0; i<NUMBER_OF_LIGHTS; ++i) {
 
-        vec3 l= normalize(lights[i].position - p);
-        vec3 h= normalize(o + l);
-        // cos
-        float cos_theta= max(0, dot(nn, l));
-        float cos_theta_h= max(0, dot(nn, h));
+        // vec3 l= normalize(lights[i].position - p);
+        // vec3 h= normalize(o + l);
+        // // cos
+        // float cos_theta= max(0, dot(nn, l));
+        // float cos_theta_h= max(0, dot(nn, h));
         
-        // meme hemisphere
-        if(cos_theta <= 0 || cos_theta_h <= 0 || cos_theta_o <= 0) {
-            //fragment_color = vec4(0,0,0,1);
-            continue;
-        }
+        // // meme hemisphere
+        // if(cos_theta <= 0 || cos_theta_h <= 0 || cos_theta_o <= 0) {
+        //     //fragment_color = vec4(0,0,0,1);
+        //     continue;
+        // }
 
-        // D
-        float D= alpha / (1 + cos_theta_h*cos_theta_h * (alpha*alpha -1));
-        D= D*D / PI;
-        // G2
-        float tan2_theta_o= 1 / (cos_theta_o*cos_theta_o) - 1;
-        float lambda_o= 1 + alpha*alpha * tan2_theta_o;
-        float tan2_theta= 1 / (cos_theta*cos_theta) - 1;
-        float lambda= 1 + alpha*alpha * tan2_theta;
-        float G2= 2 / (sqrt(lambda_o) + sqrt(lambda));
-        // F
-        float F= F0 + (1 - F0) * pow(1 - dot(o, h), 5);
-        // brdf
-        float fr= (F * D * G2) / (4 * cos_theta_o * cos_theta);
+        // // D
+        // float D= alpha / (1 + cos_theta_h*cos_theta_h * (alpha*alpha -1));
+        // D= D*D / PI;
+        // // G2
+        // float tan2_theta_o= 1 / (cos_theta_o*cos_theta_o) - 1;
+        // float lambda_o= 1 + alpha*alpha * tan2_theta_o;
+        // float tan2_theta= 1 / (cos_theta*cos_theta) - 1;
+        // float lambda= 1 + alpha*alpha * tan2_theta;
+        // float G2= 2 / (sqrt(lambda_o) + sqrt(lambda));
+        // // F
+        // float F= F0 + (1 - F0) * pow(1 - dot(o, h), 5);
+        // // brdf
+        // float fr= (F * D * G2) / (4 * cos_theta_o * cos_theta);
         
-        //TODO ajouter un tableau pour stocker les sampler, les pDepth associés à chaque lumière...
-        //Pour l'instant si i==0, soleil, sinon lamp i, c'est pas très générique tout ça...
-        //Et c'est triste d'avoir un if dans un shader
-        float shadow;
-        if (i == 0)
-            shadow = shadowCalculations(pDepth_Sun,nn,l, shadowMapSun);
-        else if (i==1)
-            shadow = shadowCalculations(pDepth_Lamp1,nn,l, shadowMapLamp1);
-        else if (i==2)
-            shadow = shadowCalculations(pDepth_Lamp2,nn,l, shadowMapLamp2);
-        else
-            shadow = shadowCalculations(pDepth_Lamp3,nn,l, shadowMapLamp3);
+        // //TODO ajouter un tableau pour stocker les sampler, les pDepth associés à chaque lumière...
+        // //Pour l'instant si i==0, soleil, sinon lamp i, c'est pas très générique tout ça...
+        // float shadow;
+        // if (i == 0)
+        //     shadow = shadowCalculations(pDepth_Sun,nn,l, shadowMapSun);
+        // else if (i==1)
+        //     shadow = shadowCalculations(pDepth_Lamp1,nn,l, shadowMapLamp1);
+        // else if (i==2)
+        //     shadow = shadowCalculations(pDepth_Lamp2,nn,l, shadowMapLamp2);
+        // else
+        //     shadow = shadowCalculations(pDepth_Lamp3,nn,l, shadowMapLamp3);
 
-        color=      color + 
-                    shadow                          * 
-                    materials[matIndex].diffuse.rgb * 
-                    vec3(lights[i].color)           * 
-                    lights[i].intensity             * 
-                    fr                              * 
-                    cos_theta;
+        // color=      color + 
+        //             shadow                          * 
+        //             materials[matIndex].diffuse.rgb * 
+        //             vec3(lights[i].color)           * 
+        //             lights[i].intensity             * 
+        //             fr                              * 
+        //             cos_theta;
+
+        color += computeColorFromLight(o, nn, cos_theta_o, lights[i], pDepths[i], getSampler(i));
 
     }
 
