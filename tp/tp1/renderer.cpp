@@ -19,7 +19,7 @@ int Renderer::init() {
 
     //Paramètres de la projection orthographique shadow map
     orthoProjShadowMapSun = Ortho(-150,150,-150,150,0.1f,200.f);
-    orthoProjShadowMapLamp = Ortho(-20,20,-30,10,0.1f,50.f);
+    orthoProjShadowMapLamp = Ortho(-20,20,-20,20,0.1f,30.f);
 
     //Load orbiter
     m_camera.read_orbiter("tp/tp1/objects/orbiter.txt");
@@ -120,9 +120,9 @@ void Renderer::createObjects() {
     m_lights.push_back(Light(Point(0,0,0), 12, White()));
     
     //Position des street lamp
-    m_lights.push_back(Light(Point(15,25,32), 10, Color(1,0.8,0.8)));
-    m_lights.push_back(Light(Point(-22,25,30), 10, Color(1,0.8,0.8)));
-    m_lights.push_back(Light(Point(55,30,55), 10, Color(1,0.5,0.5)));
+    m_lights.push_back(Light(Point(15,25,32), 10, Blue()));
+    m_lights.push_back(Light(Point(-21,25,42.5), 10, Red()));
+    m_lights.push_back(Light(Point(50,25,60), 10, Color(1,0.5,0.5)));
 }
 
 void Renderer::addAnimatedObj(const std::string& beginFilePath, int nb) {
@@ -275,7 +275,6 @@ void Renderer::updateModels() {
                                 * Translation(0, 0, key_state('z') ? 0.5 : 0) 
                                 * RotationY(key_state('d') ? -coefTurn : key_state('q') ? coefTurn: 0);
 
-
     //Le soleil : distance à midi de 100 pixels en Y, puis rotate autour du monde
     Transform Tsun = RotationZ(t/50.f) * Translation(0,100,0);
     Point posSun = Tsun(Point(0,0,0));
@@ -358,7 +357,7 @@ Transform Renderer::getViewFromSun(vec3 pos) {
 }
 
 Transform Renderer::getViewFromLight(vec3 pos) {
-    return Lookat(pos, Point(pos.x,0,pos.y+0.1), Vector(0,1,0));
+    return Lookat(pos, Point(pos.x,0,pos.z+0.1), Vector(0,1,0));
 }
 
 void Renderer::shadowMapRender(const Transform& orthoProjShadowMap, const Transform &view) {    
