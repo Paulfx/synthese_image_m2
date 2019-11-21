@@ -66,24 +66,6 @@ float plane( const in vec3 o, const in vec3 d, const in vec3 anchor, const in ve
     return t;
 }
 
-Vector pvec= cross(ray.d, e2);
-float det= dot(e1, pvec);
-
-float inv_det= 1 / det;
-Vector tvec(p, ray.o);
-
-float u= dot(tvec, pvec) * inv_det;
-if(u < 0 || u > 1) return Hit();
-
-Vector qvec= cross(tvec, e1);
-float v= dot(ray.d, qvec) * inv_det;
-if(v < 0 || u + v > 1) return Hit();
-
-float t= dot(e2, qvec) * inv_det;
-if(t > htmax || t < 0) return Hit();
-
-return Hit(id, t, u, v); 
-
 float triangle(const in vec3 o, const in vec3 d, const in vec3 a, const in vec3 b, const in vec3 c) {
 
     vec3 ab= b-a;
@@ -92,8 +74,19 @@ float triangle(const in vec3 o, const in vec3 d, const in vec3 a, const in vec3 
     vec3 pvec= cross(d,ac);
     float inv_det= 1/dot(ab,pvec);
 
+    vec3 tvec = o-a;
 
+    float u = dot(tvec,pvec) * inv_det;
+    if (u<0 || u>1) return inf;
 
+    vec3 qvec = cross(tvec,ab);
+    float v= dot(d, qvec) * inv_det;
+    if (v<0 || u+v > 1) return inf;
+
+    float t= dot(ac, qvec) * inv_det;
+    if (t>inf || t<0) return inf;
+
+    return t;
 }
 
 
@@ -101,35 +94,52 @@ bool object( const in vec3 o, const in vec3 d, out float t, out vec3 n, out vec3
 {
     vec3 center= vec3(0, 0, 0) + vec3(cos(time / 1000), sin(time / 4000) /2, sin(time / 1000));
     float radius= 0.6;
-    float t1= sphere(o, d, center, radius);
+    
+
+    //float t1= sphere(o, d, center, radius);
+    
+
+    float t3= triangle(o,d, vec3(0,0,0), vec3(0,1,0), vec3(0,0,1));
+    
+
+
     float t2= plane(o, d, vec3(0, -0.5, 0), vec3(0, 1, 0));
     
-    if(t1 < inf && t1 < t2)
-    {
-        n= normalize(o + t1*d - center); 
-        t= t1;
-        //~ // couleur constante
-        c= vec3(1, 0.2, 0.6);
+    // if(t1 < inf && t1 < t2)
+    // {
+    //     n= normalize(o + t1*d - center); 
+    //     t= t1;
+    //     //~ // couleur constante
+    //     c= vec3(1, 0.2, 0.6);
         
-        // miroir
-        vec3 mo= o + t1*d + 0.001 * n;
-        vec3 md= reflect(d, n);
-        vec3 mc;
-        float mt= plane(mo, md, vec3(0, -0.5, 0), vec3(0, 1, 0));
-        if(mt < inf)
-        {
-            vec3 mp= mo + mt*md;
-            float dd= length(mp - (floor(mp) + 0.5));
-            float r0= 0.8;
-            float r= r0 + (1.0 - r0) * pow(1.0 + dot(n, md), 5);
+    //     // miroir
+    //     vec3 mo= o + t1*d + 0.001 * n;
+    //     vec3 md= reflect(d, n);
+    //     vec3 mc;
+    //     float mt= plane(mo, md, vec3(0, -0.5, 0), vec3(0, 1, 0));
+    //     if(mt < inf)
+    //     {
+    //         vec3 mp= mo + mt*md;
+    //         float dd= length(mp - (floor(mp) + 0.5));
+    //         float r0= 0.8;
+    //         float r= r0 + (1.0 - r0) * pow(1.0 + dot(n, md), 5);
             
-            c= vec3(abs(md)*dd) * 4 * c * r;
+    //         c= vec3(abs(md)*dd) * 4 * c * r;
 
-            //~ c= vec3(0.6, 0.2, 1) * c * r;
-        }
+    //         //~ c= vec3(0.6, 0.2, 1) * c * r;
+    //     }
+    //     return true;
+    // }
+
+    if (t3 < inf && t3 < t2) {
+        //Triangle
+        n = normalize(cross(vec3(0,0,0), vec3(0,1,0)));
+        t = t3;
+        c = vec3(1,0,1);
+
         return true;
     }
-    else if(t2 < inf && t2 < t1)
+    else if(t2 < inf && t2 < t3)
     {
         n= vec3(0, 1, 0);
         t= t2;

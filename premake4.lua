@@ -208,23 +208,38 @@ for i, name in ipairs(tutosM2) do
 		files { gkit_dir .. "/tutos/M2/" .. name..'.cpp' }
 end
 
-project("tp1")
-    language "C++"
-    kind "ConsoleApp"
-    targetdir "bin"
-    files ( gkit_files )
-    files { gkit_dir .. "/tp/tp1/*.cpp" }
+tps = {
+	"tp1",
+	"tp2",
+	"tp3"
+}
 
-project("tp2")
-    language "C++"
-    kind "ConsoleApp"
-    targetdir "bin"
-    files ( gkit_files )
-    files { gkit_dir .. "/tp/tp2/*.cpp" }
+for i, name in ipairs(tps) do
+	project(name)
+		language "C++"
+		kind "ConsoleApp"
+		targetdir "bin"
+		files ( gkit_files )
+		files { gkit_dir .. "/tp/" .. name..'/*.cpp' }
+end
 
-project("test")
-    language "C++"
-    kind "ConsoleApp"
-    targetdir "bin"
-    files ( gkit_files )
-    files { gkit_dir .. "/tp/test/*.cpp" }
+-- project("tp1")
+--     language "C++"
+--     kind "ConsoleApp"
+--     targetdir "bin"
+--     files ( gkit_files )
+--     files { gkit_dir .. "/tp/tp1/*.cpp" }
+
+-- project("tp2")
+--     language "C++"
+--     kind "ConsoleApp"
+--     targetdir "bin"
+--     files ( gkit_files )
+--     files { gkit_dir .. "/tp/tp2/*.cpp" }
+
+-- project("test")
+--     language "C++"
+--     kind "ConsoleApp"
+--     targetdir "bin"
+--     files ( gkit_files )
+--     files { gkit_dir .. "/tp/test/*.cpp" }
