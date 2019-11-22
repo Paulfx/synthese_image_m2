@@ -102,6 +102,26 @@ vec3 computeColorFromLight(vec3 o, vec3 nn, float cos_theta_o, Light light) {
             cos_theta;
 }
 
+bool isInSpot(vec3 vertexPos, vec3 lightPos, out float intensity) {
+    vec3 lightDirection = vertexPos - lightPos;
+    vec3 down = vec3(0,-1,0);
+
+    float angle = acos(dot(down,normalize(lightDirection)));
+
+    const float maxAngle = 0.7f;
+    if (angle > maxAngle) 
+        return false;
+
+    //Compute intensity
+    //distance au sol
+    float l = tan(angle) * lightPos.y;
+    const float lMax = tan(maxAngle) * lightPos.y; 
+    //Plus il est loin, moins il éclaire
+    intensity = 1 - l/lMax;
+
+    return true;
+}
+
 void main( )
 {	
     // directions
@@ -120,13 +140,25 @@ void main( )
 
     vec3 tempColor;
     float shadow;
+    float spotIntensity;
+    bool spot;
     //pour toutes les lumières
     for (int i=0; i<NUMBER_OF_LIGHTS; ++i) {
+        spotIntensity = 1;
+        spot = true;
+        //Le soleil n'est pas un spot
+        if (i != 0)
+             spot = isInSpot(p,lights[i].position, spotIntensity);
+        
+        if (spot) {
+            //Si l'objet est éclairé, on calcule sa brdf + shadow
+            tempColor = computeColorFromLight(o, nn, cos_theta_o, lights[i]);
+            shadow = shadowCalculations(pDepths[i], nn, normalize(lights[i].position - p), getSampler(i));
+            color += shadow * tempColor * spotIntensity;
+        }
 
-        tempColor = computeColorFromLight(o, nn, cos_theta_o, lights[i]);
-        shadow = shadowCalculations(pDepths[i], nn, l, getSampler(i));
+        //color += materials[matIndex].emission.rgb * lights[i].intensity / 7.f;
 
-        color += 
     }
 
     fragment_color = vec4(color,1);

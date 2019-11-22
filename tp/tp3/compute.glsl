@@ -5,15 +5,12 @@
 
 #ifdef COMPUTE_SHADER
 
-layout(std430, binding= 1) readonly buffer vertexData
+layout(std430, binding= 1) readonly buffer primitiveData
 {
-    vec3 data[];
+    vec3 triangles[];
 };
 
-layout(std430, binding= 0) writeonly buffer transformedData
-{
-    vec4 transformed[];
-};
+layout(rgba32f, binding = 0) uniform image2D img_output;
 
 uniform mat4 mvpMatrix;
 uniform mat4 mvpInvMatrix;

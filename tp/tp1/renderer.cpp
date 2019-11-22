@@ -120,8 +120,8 @@ void Renderer::createObjects() {
     m_lights.push_back(Light(Point(0,0,0), 12, White()));
     
     //Position des street lamp
-    m_lights.push_back(Light(Point(15,25,32), 10, Blue()));
-    m_lights.push_back(Light(Point(-21,25,42.5), 10, Red()));
+    m_lights.push_back(Light(Point(15,25,32), 10, Color(1,0.5,0.5)));
+    m_lights.push_back(Light(Point(-21,25,42.5), 10, Color(1,0.5,0.5)));
     m_lights.push_back(Light(Point(50,25,60), 10, Color(1,0.5,0.5)));
 }
 
@@ -287,10 +287,11 @@ void Renderer::updateModels() {
 
     const float intensityMaxLamp = 7;
     //Les street lamp s'allument quand le soleil décroit
-    m_lights[1].intensity = intensityMaxLamp * (1 - m_lights[0].intensity / intensityMaxSun);
-    m_lights[2].intensity = intensityMaxLamp * (1 - m_lights[0].intensity / intensityMaxSun);
-    m_lights[3].intensity = intensityMaxLamp * (1 - m_lights[0].intensity / intensityMaxSun);
-
+    float intensityLamp = intensityMaxLamp * (1 - m_lights[0].intensity / intensityMaxSun);
+    for (int i=1; i<numberOfLights; ++i) {
+        m_lights[i].intensity = intensityLamp;        
+    }
+    printf("%f\n",m_lights[1].intensity/7.f);
 }
 
 // dessiner une nouvelle image
