@@ -88,7 +88,7 @@ public:
         };
         
         // recupere les attributs du mesh
-        std::vector<triangle> data;//(m_mesh.triangle_count());
+        std::vector<triangle_glsl> data;//(m_mesh.triangle_count());
         for(int i= 0; i < m_mesh.triangle_count(); i++)
             data.push_back( triangle_glsl(m_mesh.triangle(i)));
         
@@ -101,15 +101,11 @@ public:
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_buffer);
         glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(triangle_glsl) * data.size(), data.data(), GL_STREAM_READ);
         
-        glGenBuffers(1, &m_transformed_buffer);
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_transformed_buffer);
-        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(vec4) * data.size(), std::vector<vec4>(data.size(), vec4()).data(), GL_STREAM_COPY);
-        
-        // 
+        //
+        m_compute_program= read_program("tp/tp3/compute.glsl");
+        program_print_errors(m_compute_program); 
         m_program= read_program("tp/tp3/pipeline.glsl");
         program_print_errors(m_program);
-        m_compute_program= read_program("tp/tp3/compute.glsl");
-        program_print_errors(m_compute_program);
         
         //
         Point pmin, pmax;
@@ -123,27 +119,50 @@ public:
         glDepthFunc(GL_LESS);                       // ztest, conserver l'intersection la plus proche de la camera
         glEnable(GL_DEPTH_TEST);                    // activer le ztest
         
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);      // ne dessine que les aretes des triangles
-        glLineWidth(2);
+        // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);      // ne dessine que les aretes des triangles
+        // glLineWidth(2);
         
         return 0;   // ras, pas d'erreur
     }
 
     void createTextureOutput() {
-        GLuint tex_output;
-        glGenTextures(1, &tex_output);
+        glGenTextures(1, &m_texture_output);
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, tex_output);
+        glBindTexture(GL_TEXTURE_2D, m_texture_output);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, window_width(), window_height(), 0, GL_RGBA, GL_FLOAT,
          NULL);
-        glBindImageTexture(0, tex_output, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-
+        glBindImageTexture(0, m_texture_output, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
     }
     
+    void printInfoCompute() {
+        int work_grp_cnt[3];
+
+        glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, &work_grp_cnt[0]);
+        glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1, &work_grp_cnt[1]);
+        glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 2, &work_grp_cnt[2]);
+
+        printf("max global (total) work group size x:%i y:%i z:%i\n",
+          work_grp_cnt[0], work_grp_cnt[1], work_grp_cnt[2]);
+
+        int work_grp_size[3];
+
+        glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 0, &work_grp_size[0]);
+        glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 1, &work_grp_size[1]);
+        glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 2, &work_grp_size[2]);
+
+        printf("max local (in one shader) work group sizes x:%i y:%i z:%i\n",
+          work_grp_size[0], work_grp_size[1], work_grp_size[2]);
+
+        int work_grp_inv;
+
+        glGetIntegerv(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS, &work_grp_inv);
+        printf("max local work group invocations %i\n", work_grp_inv);
+    }
+
     // destruction des objets de l'application
     int quit( )
     {
@@ -151,7 +170,7 @@ public:
         release_program(m_program);
         release_program(m_compute_program);
         glDeleteBuffers(1, &m_buffer);
-        glDeleteBuffers(1, &m_transformed_buffer);
+        glDeleteTextures(1, &m_texture_output);
         glDeleteVertexArrays(1, &m_vao);
         return 0;
     }
@@ -171,11 +190,9 @@ public:
         else if(mb & SDL_BUTTON(2))         // le bouton du milieu est enfonce
             m_camera.translation((float) mx / (float) window_width(), (float) my / (float) window_height());
 
-        // selectionne les buffers
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, m_buffer);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_transformed_buffer);
-        
-        // etape 1 : utilise le compute shader pour transformer les positions des sommets du mesh.
+        // selectionne le buffer
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, m_buffer);        
+        // etape 1 : utilise le compute shader pour tray tracer les primitives de la scène
         glUseProgram(m_compute_program);
         
         // uniforms du compute shader
@@ -184,27 +201,27 @@ public:
         Transform projection= m_camera.projection(window_width(), window_height(), 45);
         Transform mvp= projection * view * model;
         
-        program_uniform(m_compute_program, "mvpMatrix", mvp);
+        // program_uniform(m_compute_program, "mvpMatrix", mvp);
+        // program_uniform(m_compute_program, "mvpInvMatrix", mvp.inverse());
         
-        // calcule le nombre de groupes de threads
-        int n= m_mesh.vertex_count() / 256;
-        if(m_mesh.vertex_count() % 256)
-            n= n+1;
-        glDispatchCompute(n, 1, 1);
+        // Nombre de groupes : 
+
+        //Version 1: 1 groupe par pixel de l'image
+        glDispatchCompute(window_width(), window_height(), 1);
         
         // etape 2 : synchronisation
-        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);     
         
-        // etape 3 : utilise les sommets transformes (par le compute shader) pour afficher le mesh.
+        // Dessiner la texture_output
         glBindVertexArray(m_vao);
         glUseProgram(m_program);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_transformed_buffer);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_texture_output);
 
-        glDrawArrays(GL_TRIANGLES, 0, m_mesh.vertex_count());
-
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
-
+        //3 vertices pour toute la scène
+        glDrawArrays(GL_TRIANGLES, 0, 3);
         return 1;
     }
 
@@ -214,7 +231,7 @@ protected:
 
     GLuint m_vao;
     GLuint m_buffer;
-    GLuint m_transformed_buffer;
+    GLuint m_texture_output;
     GLuint m_program;
     GLuint m_compute_program;
 };

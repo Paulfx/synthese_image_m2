@@ -1,28 +1,29 @@
-
-//! \file pipeline_compute.glsl
-
 #version 430
 
 #ifdef VERTEX_SHADER
 
-layout(std430, binding= 0) readonly buffer transformedData
-{
-    vec4 transformed[];
-};
+out vec2 position;
 
 void main( )
 {
-    gl_Position= transformed[gl_VertexID];
+    vec2 positions[3]= vec2[3]( vec2(-1,-3), vec2(3, 1), vec2(-1, 1) );
+    
+    position= positions[gl_VertexID];
+    gl_Position= vec4(positions[gl_VertexID], 0, 1);
 }
 #endif
 
 #ifdef FRAGMENT_SHADER
 
+uniform sampler2D tex;
+
+in vec2 position;
 out vec4 fragment_color;
 
 void main( )
 {
-    fragment_color= vec4(1, 1, 0, 1);
+	vec4 color = texture(tex, position);
+    fragment_color= color;
 }
 #endif
 

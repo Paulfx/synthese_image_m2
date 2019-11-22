@@ -5,15 +5,13 @@
 
 #ifdef COMPUTE_SHADER
 
+layout(rgba32f, binding = 0) uniform image2D img_output;
+
 layout(std430, binding= 1) readonly buffer primitiveData
 {
     vec3 triangles[];
 };
 
-layout(rgba32f, binding = 0) uniform image2D img_output;
-
-uniform mat4 mvpMatrix;
-uniform mat4 mvpInvMatrix;
 
 #define inf 999999.0
 
@@ -41,22 +39,40 @@ float triangle(const in vec3 o, const in vec3 d, const in vec3 a, const in vec3 
     return t;
 }
 
-layout(local_size_x= 256) in;
+// uniform mat4 mvpMatrix;
+// uniform mat4 mvpInvMatrix;
+
+//Taille des groupes locaux
+layout(local_size_x= 1, local_size_y=1) in;
 void main( )
 {
+	//position du pixel dans l'image
+	ivec2 position = ivec2(gl_GlobalInvocationID.xy);
 
 	// construction du rayon pour le pixel, passage depuis le repere projectif
-    vec4 oh= mvpInvMatrix * vec4(position, 0, 1);       // origine sur near
-    vec4 eh= mvpInvMatrix * vec4(position, 1, 1);       // extremite sur far
+    // vec4 oh= mvpInvMatrix * vec4(position, 0, 1);       // origine sur near
+    // vec4 eh= mvpInvMatrix * vec4(position, 1, 1);       // extremite sur far
 
+    // // origine et direction
+    // vec3 o= oh.xyz / oh.w;                              // origine
+    // vec3 d= eh.xyz / eh.w - oh.xyz / oh.w;              // direction
+    // d= normalize(d);
 
     
+    //Version 1 :
+    //1 groupe par rayon == par pixel de l'image
+    //Qui teste toutes les primitives (local_size devrait être le nombre de primitives..)
 
-    
+    vec4 color = vec4(1,0,0,1);
 
-    // chaque thread transforme un sommet.
-    if(gl_LocalInvocationIndex < data.length())
-        transformed[gl_GlobalInvocationID.x]= mvpMatrix * vec4(data[gl_GlobalInvocationID.x], 1);
+    //Output
+    imageStore(img_output, position, color);
+
+    //Version 2: 1 groupe par primitives, qui teste tous les rayons de l'image
+    //Et stocke le min en atomicMin, ou min dans une passe après
+
+    //Version 3: 1 thread par paire (rayon,primitive)
+
 }
 #endif
 
